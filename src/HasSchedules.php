@@ -24,7 +24,7 @@ trait HasSchedules
     public function addSchedule(ScheduleDriver $driver): Schedule
     {
         return $this->schedules()->create([
-            'type' => Schedule::resolveDriverType($driver),
+            'type' => Cadence::getDriverType($driver),
             'expression' => $driver->toExpression(),
             'timezone' => $driver->getTimezone(),
             'next_run_at' => $driver->getNextOccurrence(now()),

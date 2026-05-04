@@ -19,15 +19,15 @@ class CadenceServiceProvider extends ServiceProvider
     public function register(): void
     {
         if (class_exists(CronExpression::class)) {
-            Schedule::driver('cron', CronSchedule::class);
+            Cadence::register('cron', CronSchedule::class);
         }
 
         if (class_exists(RRule::class)) {
-            Schedule::driver('rrule', RruleSchedule::class);
+            Cadence::register('rrule', RruleSchedule::class);
         }
 
         if (class_exists(Rule::class)) {
-            Schedule::driver('recurr', RecurrSchedule::class);
+            Cadence::register('recurr', RecurrSchedule::class);
         }
     }
 
