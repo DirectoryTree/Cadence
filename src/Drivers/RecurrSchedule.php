@@ -4,8 +4,8 @@ namespace DirectoryTree\Cadence\Drivers;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use DateTimeZone;
 use DateTime;
+use DateTimeZone;
 use DirectoryTree\Cadence\ScheduleDriver;
 use DirectoryTree\Cadence\Support\RruleExpression;
 use Recurr\Rule;
@@ -92,5 +92,4 @@ class RecurrSchedule implements ScheduleDriver
     {
         return new static($expression);
     }
-
 }

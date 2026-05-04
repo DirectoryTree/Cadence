@@ -11,15 +11,11 @@ class CronSchedule implements ScheduleDriver
 {
     /**
      * The cron expression.
-     *
-     * @var string
      */
     protected string $expression;
 
     /**
      * The timezone for the cron schedule.
-     *
-     * @var string|null
      */
     protected ?string $timezone = null;
 
