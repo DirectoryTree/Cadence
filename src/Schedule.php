@@ -11,24 +11,18 @@ use InvalidArgumentException;
 class Schedule extends Model
 {
     /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $guarded = [];
+
+    /**
      * The registered schedule drivers.
      *
      * @var array<string, class-string<ScheduleDriver>>
      */
     protected static array $drivers = [];
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'type',
-        'expression',
-        'timezone',
-        'next_run_at',
-        'last_run_at',
-    ];
 
     /**
      * Get the attributes that should be cast.
