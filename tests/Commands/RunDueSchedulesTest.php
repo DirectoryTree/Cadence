@@ -2,6 +2,7 @@
 
 use Carbon\Carbon;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
+use DirectoryTree\Cadence\Drivers\RruleSchedule;
 use DirectoryTree\Cadence\Events\ScheduleTriggered;
 use DirectoryTree\Cadence\Tests\Fixtures\SchedulableModel;
 use Illuminate\Database\Schema\Blueprint;
@@ -154,7 +155,7 @@ it('does not re-dispatch rrule schedule on same day after firing', function () {
 
     $model = SchedulableModel::create();
     $schedule = $model->addSchedule(
-        new \DirectoryTree\Cadence\Drivers\RruleSchedule('DTSTART=20260504T090000;FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR')
+        new RruleSchedule('DTSTART=20260504T090000;FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR')
     );
 
     // next_run_at should be Monday at 09:00
