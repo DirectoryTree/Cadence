@@ -116,6 +116,77 @@ it('does not pick up schedules with null next_run_at', function () {
     Event::assertNotDispatched(ScheduleTriggered::class);
 });
 
+it('does not re-dispatch on subsequent runs after firing', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 10:00:00');
+
+    $model = SchedulableModel::create();
+    $model->addSchedule(new CronSchedule('0 12 * * *'));
+
+    // Advance past noon — schedule is due
+    Carbon::setTestNow('2026-05-02 12:01:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 1);
+
+    // Run again one minute later — should NOT fire again
+    Carbon::setTestNow('2026-05-02 12:02:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 1);
+
+    // Run again much later, still before next occurrence (tomorrow noon)
+    Carbon::setTestNow('2026-05-02 23:59:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 1);
+});
+
+it('does not re-dispatch rrule schedule on same day after firing', function () {
+    Event::fake();
+
+    // Use an explicit DTSTART so the time is deterministic.
+    // 2026-05-04 is a Monday.
+    Carbon::setTestNow('2026-05-03 12:00:00');
+
+    $model = SchedulableModel::create();
+    $schedule = $model->addSchedule(
+        new \DirectoryTree\Cadence\Drivers\RruleSchedule('DTSTART=20260504T090000;FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR')
+    );
+
+    // next_run_at should be Monday at 09:00
+    expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-04 09:00:00');
+
+    // Fire on Monday after 9am
+    Carbon::setTestNow('2026-05-04 09:01:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 1);
+
+    $schedule->refresh();
+
+    // next_run_at should now be Tuesday at 09:00
+    expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-05 09:00:00');
+
+    // Run again later on Monday — should NOT fire
+    Carbon::setTestNow('2026-05-04 12:00:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 1);
+
+    // Run again at end of Monday — still should NOT fire
+    Carbon::setTestNow('2026-05-04 23:59:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 1);
+});
+
 it('dispatches events for multiple due schedules', function () {
     Event::fake();
     Carbon::setTestNow('2026-05-02 10:00:00');
