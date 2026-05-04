@@ -27,12 +27,14 @@ class RunDueSchedules extends Command
      */
     public function handle(): int
     {
-        Schedule::due()->each(function (Schedule $schedule) {
+        $now = now();
+
+        Schedule::due($now)->each(function (Schedule $schedule) use ($now) {
             ScheduleTriggered::dispatch($schedule);
 
             $schedule->update([
-                'last_run_at' => now(),
-                'next_run_at' => $schedule->nextOccurrence(now()),
+                'last_run_at' => $now,
+                'next_run_at' => $schedule->nextOccurrence($now),
             ]);
         });
 
