@@ -24,14 +24,15 @@
     },
     "require-dev": {
         "laravel/pint": "^1.14",
+        "simshaun/recurr": "^5.0",
+        "rlanvin/php-rrule": "^2.0",
+        "spatie/laravel-ray": "^1.35",
         "nunomaduro/collision": "^8.8",
+        "dragonmantank/cron-expression": "^3.0",
         "orchestra/testbench": "^9.0|^10.0|^11.0",
         "pestphp/pest": "^2.0|^3.0|^4.0",
         "pestphp/pest-plugin-arch": "^2.0|^3.0|^4.0",
-        "pestphp/pest-plugin-laravel": "^2.0|^3.0|^4.0",
-        "rlanvin/php-rrule": "^2.0",
-        "simshaun/recurr": "^5.0",
-        "spatie/laravel-ray": "^1.35"
+        "pestphp/pest-plugin-laravel": "^2.0|^3.0|^4.0"
     },
     "suggest": {
         "rlanvin/php-rrule": "Required to use the RruleSchedule driver (^2.0).",
