@@ -7,6 +7,8 @@ use DirectoryTree\Cadence\Drivers\CronSchedule;
 use DirectoryTree\Cadence\Drivers\RecurrSchedule;
 use DirectoryTree\Cadence\Drivers\RruleSchedule;
 use Illuminate\Support\ServiceProvider;
+use Recurr\Rule;
+use RRule\RRule;
 
 class CadenceServiceProvider extends ServiceProvider
 {
@@ -17,11 +19,11 @@ class CadenceServiceProvider extends ServiceProvider
     {
         Schedule::driver('cron', CronSchedule::class);
 
-        if (class_exists(\RRule\RRule::class)) {
+        if (class_exists(RRule::class)) {
             Schedule::driver('rrule', RruleSchedule::class);
         }
 
-        if (class_exists(\Recurr\Rule::class)) {
+        if (class_exists(Rule::class)) {
             Schedule::driver('recurr', RecurrSchedule::class);
         }
     }

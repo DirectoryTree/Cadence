@@ -1,8 +1,10 @@
 <?php
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
 use DirectoryTree\Cadence\Schedule;
+use DirectoryTree\Cadence\ScheduleDriver;
 use DirectoryTree\Cadence\Tests\Fixtures\SchedulableModel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -146,12 +148,32 @@ it('throws when resolving an unregistered driver type', function () {
 })->throws(InvalidArgumentException::class, 'Unknown schedule driver type: unknown');
 
 it('throws when adding a schedule with an unregistered driver', function () {
-    $driver = new class implements \DirectoryTree\Cadence\ScheduleDriver {
-        public static function fromExpression(string $expression): static { return new static; }
-        public function setTimezone(string $timezone): static { return $this; }
-        public function getTimezone(): ?string { return null; }
-        public function toExpression(): string { return ''; }
-        public function getNextOccurrence(\Carbon\CarbonInterface $after): ?\Carbon\CarbonInterface { return null; }
+    $driver = new class implements ScheduleDriver
+    {
+        public static function fromExpression(string $expression): static
+        {
+            return new self;
+        }
+
+        public function setTimezone(string $timezone): static
+        {
+            return $this;
+        }
+
+        public function getTimezone(): ?string
+        {
+            return null;
+        }
+
+        public function toExpression(): string
+        {
+            return '';
+        }
+
+        public function getNextOccurrence(CarbonInterface $after): ?CarbonInterface
+        {
+            return null;
+        }
     };
 
     SchedulableModel::create()->addSchedule($driver);

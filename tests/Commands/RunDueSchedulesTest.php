@@ -131,5 +131,3 @@ it('dispatches events for multiple due schedules', function () {
 
     Event::assertDispatchedTimes(ScheduleTriggered::class, 2);
 });
-
-
