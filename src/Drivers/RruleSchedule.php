@@ -22,8 +22,8 @@ class RruleSchedule extends Schedule
 
         $occurrences = $rrule->getOccurrencesAfter($after, false, 1);
 
-        if ($occurrences) {
-            return Carbon::instance($occurrences[0]);
+        if ($occurrences && $occurrence = $occurrences[0]) {
+            return Carbon::instance($occurrence);
         }
 
         return null;
