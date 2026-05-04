@@ -66,7 +66,10 @@ class Schedule extends Model
      */
     public function scopeDue(Builder $query, ?CarbonInterface $date = null): void
     {
-        $query->whereNotNull('next_run_at')
-            ->where('next_run_at', '<=', $date ?? now());
+        $query->where(function (Builder $query) use ($date) {
+            $query
+                ->whereNotNull('next_run_at')
+                ->where('next_run_at', '<=', $date ?? now());
+        });
     }
 }
