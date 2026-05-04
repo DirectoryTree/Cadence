@@ -149,7 +149,9 @@ Register the `schedules:run` command in your application's scheduler to run ever
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('schedules:run')->everyMinute();
+Schedule::command('schedules:run')
+    ->withoutOverlapping()
+    ->everyMinute();
 ```
 
 This command queries all schedules where `next_run_at <= now()`, dispatches a `ScheduleTriggered` event for each, and advances `next_run_at` to the next occurrence.
