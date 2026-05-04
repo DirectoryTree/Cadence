@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use Cron\CronExpression;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
 
 it('computes the next occurrence', function () {
