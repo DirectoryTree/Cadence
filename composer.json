@@ -35,19 +35,18 @@
         "pestphp/pest-plugin-laravel": "^2.0|^3.0|^4.0"
     },
     "suggest": {
+        "dragonmantank/cron-expression": "Required to use the CronSchedule driver (^3.0).",
         "rlanvin/php-rrule": "Required to use the RruleSchedule driver (^2.0).",
         "simshaun/recurr": "Required to use the RecurrSchedule driver (^5.0)."
     },
     "autoload": {
         "psr-4": {
-            "DirectoryTree\\Cadence\\": "src/",
-            "DirectoryTree\\Cadence\\Database\\Factories\\": "database/factories/"
+            "DirectoryTree\\Cadence\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "DirectoryTree\\Cadence\\Tests\\": "tests/",
-            "Workbench\\App\\": "workbench/app/"
+            "DirectoryTree\\Cadence\\Tests\\": "tests/"
         }
     },
     "scripts": {
