@@ -3,8 +3,8 @@
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
+use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use DirectoryTree\Cadence\Schedule;
-use DirectoryTree\Cadence\ScheduleDriver;
 use DirectoryTree\Cadence\Tests\Fixtures\SchedulableModel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -76,14 +76,6 @@ it('resolves the driver with timezone from a stored schedule', function () {
     expect($schedule->toDriver())
         ->toBeInstanceOf(CronSchedule::class)
         ->getTimezone()->toBe('America/New_York');
-});
-
-it('computes next occurrence from the model', function () {
-    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
-
-    $next = $schedule->nextOccurrence(now());
-
-    expect($next->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:00:00');
 });
 
 it('returns the schedulable relationship', function () {

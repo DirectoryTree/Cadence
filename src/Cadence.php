@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\Cadence;
 
+use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use InvalidArgumentException;
 
 class Cadence

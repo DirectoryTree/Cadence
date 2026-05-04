@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\Cadence;
 
+use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 interface Schedulable

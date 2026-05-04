@@ -4,7 +4,6 @@ namespace DirectoryTree\Cadence\Drivers;
 
 use Carbon\CarbonInterface;
 use Closure;
-use DirectoryTree\Cadence\ScheduleDriver;
 
 abstract class Schedule implements ScheduleDriver
 {

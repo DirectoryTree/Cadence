@@ -1,6 +1,6 @@
 <?php
 
-namespace DirectoryTree\Cadence;
+namespace DirectoryTree\Cadence\Drivers;
 
 use Carbon\CarbonInterface;
 

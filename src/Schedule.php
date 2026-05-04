@@ -2,8 +2,7 @@
 
 namespace DirectoryTree\Cadence;
 
-use Carbon\CarbonInterface;
-use Illuminate\Database\Eloquent\Builder;
+use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
@@ -30,6 +29,14 @@ class Schedule extends Model
     }
 
     /**
+     * Create a new Eloquent query builder for the model.
+     */
+    public function newEloquentBuilder($query): Builders\ScheduleBuilder
+    {
+        return new Builders\ScheduleBuilder($query);
+    }
+
+    /**
      * Get the parent schedulable model.
      */
     public function schedulable(): MorphTo
@@ -42,6 +49,7 @@ class Schedule extends Model
      */
     public function toDriver(): ScheduleDriver
     {
+        /** @var class-string<ScheduleDriver> $driverClass */
         $driverClass = Cadence::getDriver($this->type);
 
         $driver = $driverClass::fromExpression($this->expression);
@@ -51,25 +59,5 @@ class Schedule extends Model
         }
 
         return $driver;
-    }
-
-    /**
-     * Get the next occurrence after the given date.
-     */
-    public function nextOccurrence(CarbonInterface $after): ?CarbonInterface
-    {
-        return $this->toDriver()->getNextOccurrence($after);
-    }
-
-    /**
-     * Scope to schedules that are due.
-     */
-    public function scopeDue(Builder $query, ?CarbonInterface $date = null): void
-    {
-        $query->where(function (Builder $query) use ($date) {
-            $query
-                ->whereNotNull('next_run_at')
-                ->where('next_run_at', '<=', $date ?? now());
-        });
     }
 }

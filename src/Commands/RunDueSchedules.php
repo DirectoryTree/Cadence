@@ -34,7 +34,7 @@ class RunDueSchedules extends Command
 
             $schedule->update([
                 'last_run_at' => $now,
-                'next_run_at' => $schedule->nextOccurrence($now),
+                'next_run_at' => $schedule->toDriver()->getNextOccurrence($now),
             ]);
         });
 
