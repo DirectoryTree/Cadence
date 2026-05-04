@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\Cadence;
 
+use Cron\CronExpression;
 use DirectoryTree\Cadence\Commands\RunDueSchedules;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
 use DirectoryTree\Cadence\Drivers\RecurrSchedule;
@@ -17,7 +18,9 @@ class CadenceServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        Schedule::driver('cron', CronSchedule::class);
+        if (class_exists(CronExpression::class)) {
+            Schedule::driver('cron', CronSchedule::class);
+        }
 
         if (class_exists(RRule::class)) {
             Schedule::driver('rrule', RruleSchedule::class);
