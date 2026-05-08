@@ -131,13 +131,19 @@ Schedules can be timezone-aware. Pass the timezone as the second argument:
 
 ```php
 // Every day at 9am Eastern
-$report->addSchedule(new CronSchedule('0 9 * * *', 'America/New_York'));
+$report->addSchedule(
+    new CronSchedule('0 9 * * *', 'America/New_York')
+);
+```
 
-// Or set it via method
-$driver = new CronSchedule('0 9 * * *');
-$driver->setTimezone('America/New_York');
+Or set it via the `setTimezone()` method:
 
-$report->addSchedule($driver);
+```php
+$schedule = new CronSchedule('0 9 * * *');
+
+$schedule->setTimezone('America/New_York');
+
+$report->addSchedule($schedule);
 ```
 
 ### Running Due Schedules
