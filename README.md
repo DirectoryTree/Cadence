@@ -167,25 +167,22 @@ This command queries all schedules where `next_run_at <= now()`, dispatches a `S
 Listen for the `ScheduleTriggered` event to perform work when a schedule fires:
 
 ```php
-// app/Listeners/HandleScheduleTriggered.php
-
 namespace App\Listeners;
 
+use App\Models\Report;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use DirectoryTree\Cadence\Events\ScheduleTriggered;
 
-class HandleScheduleTriggered
+class GenerateReport implements ShouldQueue
 {
+    public function shouldQueue(ScheduleTriggered $event): bool
+    {
+        return $event->schedule->schedulable_type = Report::class;
+    }
+
     public function handle(ScheduleTriggered $event): void
     {
-        $schedule = $event->schedule;
-
-        // Access the parent model
-        $model = $schedule->schedulable;
-
-        // Perform work based on the model type
-        if ($model instanceof \App\Models\Report) {
-            $model->generate();
-        }
+        $event->schedulable->generate();
     }
 }
 ```
