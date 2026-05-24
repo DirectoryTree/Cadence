@@ -5,9 +5,15 @@ namespace DirectoryTree\Cadence;
 use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\Config;
 
 class Schedule extends Model
 {
+    public function getTable(): string
+    {
+        return config('cadence.table', 'schedules');
+    }
+
     /**
      * The attributes that are mass assignable.
      *

@@ -139,9 +139,38 @@ it('throws when resolving an unregistered driver type', function () {
     $schedule->toDriver();
 })->throws(InvalidArgumentException::class, 'Unknown schedule driver type: unknown');
 
+it('uses the configured table name', function () {
+    config()->set('cadence.table', 'custom_schedules');
+
+    expect((new Schedule)->getTable())->toBe('custom_schedules');
+});
+
+it('defaults to the schedules table from the package config', function () {
+    expect((new Schedule)->getTable())->toBe('schedules');
+});
+
+it('queries against the configured table', function () {
+    Schema::create('custom_schedules', function (Blueprint $table) {
+        $table->id();
+        $table->morphs('schedulable');
+        $table->string('type');
+        $table->text('expression');
+        $table->string('timezone')->nullable();
+        $table->timestamp('next_run_at')->nullable()->index();
+        $table->timestamp('last_run_at')->nullable();
+        $table->timestamps();
+    });
+
+    config()->set('cadence.table', 'custom_schedules');
+
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    expect($schedule->getTable())->toBe('custom_schedules')
+        ->and(Schedule::query()->count())->toBe(1);
+});
+
 it('throws when adding a schedule with an unregistered driver', function () {
-    $driver = new class implements ScheduleDriver
-    {
+    $driver = new class implements ScheduleDriver {
         public static function fromExpression(string $expression): static
         {
             return new self;
