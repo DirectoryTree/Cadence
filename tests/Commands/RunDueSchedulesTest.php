@@ -18,6 +18,7 @@ beforeEach(function () {
         $table->string('timezone')->nullable();
         $table->timestamp('next_run_at')->nullable()->index();
         $table->timestamp('last_run_at')->nullable();
+        $table->timestamp('disabled_at')->nullable();
         $table->timestamps();
     });
 
@@ -97,6 +98,22 @@ it('sets last_run_at after dispatching', function () {
     $schedule->refresh();
 
     expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
+});
+
+it('skips disabled schedules', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 12:00:00');
+
+    $model = SchedulableModel::create();
+    $schedule = $model->addSchedule(new CronSchedule('0 12 * * *'));
+    $schedule->disable();
+
+    // Advance time so the schedule would be due if not disabled
+    Carbon::setTestNow('2026-05-03 12:01:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertNotDispatched(ScheduleTriggered::class);
 });
 
 it('does not pick up schedules with null next_run_at', function () {
