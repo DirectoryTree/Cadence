@@ -18,4 +18,20 @@ class ScheduleBuilder extends Builder
                 ->where('next_run_at', '<=', $date ?? now());
         });
     }
+
+    /**
+     * Scope to enabled schedules only.
+     */
+    public function enabled(): Builder
+    {
+        return $this->whereNull('disabled_at');
+    }
+
+    /**
+     * Scope to disabled schedules only.
+     */
+    public function disabled(): Builder
+    {
+        return $this->whereNotNull('disabled_at');
+    }
 }

@@ -25,6 +25,7 @@ class Schedule extends Model
         return [
             'next_run_at' => 'datetime',
             'last_run_at' => 'datetime',
+            'disabled_at' => 'datetime',
         ];
     }
 
@@ -34,6 +35,48 @@ class Schedule extends Model
     public function newEloquentBuilder($query): Builders\ScheduleBuilder
     {
         return new Builders\ScheduleBuilder($query);
+    }
+
+    /**
+     * Determine if the schedule is disabled.
+     */
+    public function isDisabled(): bool
+    {
+        return $this->disabled_at !== null;
+    }
+
+    /**
+     * Determine if the schedule is enabled.
+     */
+    public function isEnabled(): bool
+    {
+        return !$this->isDisabled();
+    }
+
+    /**
+     * Disable the schedule.
+     */
+    public function disable(): static
+    {
+        $this->update([
+            'disabled_at' => now(),
+            'next_run_at' => null,
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Enable the schedule.
+     */
+    public function enable(): static
+    {
+        $this->update([
+            'disabled_at' => null,
+            'next_run_at' => $this->toDriver()->getNextOccurrence(now()),
+        ]);
+
+        return $this;
     }
 
     /**
