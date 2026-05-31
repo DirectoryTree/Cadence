@@ -50,7 +50,7 @@ class Schedule extends Model
      */
     public function isEnabled(): bool
     {
-        return !$this->isDisabled();
+        return ! $this->isDisabled();
     }
 
     /**
@@ -58,10 +58,10 @@ class Schedule extends Model
      */
     public function disable(): static
     {
-        $this->update([
+        $this->fill([
             'disabled_at' => now(),
             'next_run_at' => null,
-        ]);
+        ])->save();
 
         return $this;
     }
@@ -71,10 +71,10 @@ class Schedule extends Model
      */
     public function enable(): static
     {
-        $this->update([
+        $this->fill([
             'disabled_at' => null,
             'next_run_at' => $this->toDriver()->getNextOccurrence(now()),
-        ]);
+        ])->save();
 
         return $this;
     }
