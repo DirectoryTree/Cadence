@@ -29,7 +29,7 @@ class RunDueSchedules extends Command
     {
         $now = now();
 
-        Schedule::due($now)->each(function (Schedule $schedule) use ($now) {
+        Schedule::enabled()->due($now)->each(function (Schedule $schedule) use ($now) {
             ScheduleTriggered::dispatch($schedule);
 
             $schedule->update([
