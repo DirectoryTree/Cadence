@@ -197,6 +197,8 @@ Cadence uses a driver-based architecture. Drivers are automatically registered w
 
 Requires [`dragonmantank/cron-expression`](https://github.com/dragonmantank/cron-expression):
 
+> This package is already required by the Laravel framework core.
+
 ```php
 use DirectoryTree\Cadence\Drivers\CronSchedule;
 
