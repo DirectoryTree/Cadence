@@ -43,6 +43,7 @@ class CadenceServiceProvider extends ServiceProvider
 
             $this->publishesMigrations([
                 __DIR__.'/../database/migrations/create_schedules_table.php.stub' => database_path('migrations/create_schedules_table.php'),
+                __DIR__.'/../database/migrations/add_disabled_at_to_schedules_table.php.stub' => database_path('migrations/add_disabled_at_to_schedules_table.php'),
             ]);
         }
     }
