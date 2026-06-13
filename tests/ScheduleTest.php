@@ -10,16 +10,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
-    Schema::create('schedules', function (Blueprint $table) {
-        $table->id();
-        $table->morphs('schedulable');
-        $table->string('type');
-        $table->text('expression');
-        $table->string('timezone')->nullable();
-        $table->timestamp('next_run_at')->nullable()->index();
-        $table->timestamp('last_run_at')->nullable();
-        $table->timestamps();
-    });
+    $this->createScheduleTables();
 
     Schema::create('schedulable_models', function (Blueprint $table) {
         $table->id();
@@ -138,6 +129,75 @@ it('throws when resolving an unregistered driver type', function () {
 
     $schedule->toDriver();
 })->throws(InvalidArgumentException::class, 'Unknown schedule driver type: unknown');
+
+it('can disable a schedule', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    expect($schedule->isEnabled())->toBeTrue();
+    expect($schedule->isDisabled())->toBeFalse();
+
+    $schedule->disable();
+
+    $schedule->refresh();
+
+    expect($schedule->isEnabled())->toBeFalse();
+    expect($schedule->isDisabled())->toBeTrue();
+    expect($schedule->disabled_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 10:00:00');
+    expect($schedule->next_run_at)->toBeNull();
+});
+
+it('can enable a disabled schedule', function () {
+    Carbon::setTestNow('2026-05-02 10:00:00');
+
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    // Record last_run_at before disabling
+    Carbon::setTestNow('2026-05-02 12:01:00');
+    $schedule->update(['last_run_at' => now()]);
+
+    Carbon::setTestNow('2026-05-02 13:00:00');
+
+    $schedule->disable();
+
+    $schedule->refresh();
+
+    expect($schedule->isDisabled())->toBeTrue();
+    expect($schedule->next_run_at)->toBeNull();
+
+    // Enable should recompute next_run_at from now, leave last_run_at
+    $schedule->enable();
+
+    $schedule->refresh();
+
+    expect($schedule->isEnabled())->toBeTrue();
+    expect($schedule->disabled_at)->toBeNull();
+    expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-03 12:00:00');
+    expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
+});
+
+it('can advance a schedule to its next occurrence', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    $schedule->advance(Carbon::parse('2026-05-02 12:01:00'));
+
+    $schedule->refresh();
+
+    expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
+    expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-03 12:00:00');
+});
+
+it('scopes to enabled schedules', function () {
+    $model = SchedulableModel::create();
+    $enabled = $model->addSchedule(new CronSchedule('0 12 * * *'));
+    $disabled = $model->addSchedule(new CronSchedule('0 15 * * *'));
+
+    $disabled->disable();
+
+    expect(Schedule::enabled()->count())->toBe(1);
+    expect(Schedule::disabled()->count())->toBe(1);
+    expect(Schedule::enabled()->first()->id)->toBe($enabled->id);
+    expect(Schedule::disabled()->first()->id)->toBe($disabled->id);
+});
 
 it('throws when adding a schedule with an unregistered driver', function () {
     $driver = new class implements ScheduleDriver

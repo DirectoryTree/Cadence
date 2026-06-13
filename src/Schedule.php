@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\Cadence;
 
+use Carbon\CarbonInterface;
 use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -25,6 +26,7 @@ class Schedule extends Model
         return [
             'next_run_at' => 'datetime',
             'last_run_at' => 'datetime',
+            'disabled_at' => 'datetime',
         ];
     }
 
@@ -34,6 +36,61 @@ class Schedule extends Model
     public function newEloquentBuilder($query): Builders\ScheduleBuilder
     {
         return new Builders\ScheduleBuilder($query);
+    }
+
+    /**
+     * Determine if the schedule is disabled.
+     */
+    public function isDisabled(): bool
+    {
+        return (bool) $this->disabled_at;
+    }
+
+    /**
+     * Determine if the schedule is enabled.
+     */
+    public function isEnabled(): bool
+    {
+        return ! $this->isDisabled();
+    }
+
+    /**
+     * Disable the schedule.
+     */
+    public function disable(): static
+    {
+        $this->fill([
+            'disabled_at' => now(),
+            'next_run_at' => null,
+        ])->save();
+
+        return $this;
+    }
+
+    /**
+     * Enable the schedule.
+     */
+    public function enable(): static
+    {
+        $this->fill([
+            'disabled_at' => null,
+            'next_run_at' => $this->toDriver()->getNextOccurrence(now()),
+        ])->save();
+
+        return $this;
+    }
+
+    /**
+     * Advance the schedule to its next occurrence.
+     */
+    public function advance(CarbonInterface $date): static
+    {
+        $this->fill([
+            'last_run_at' => $date,
+            'next_run_at' => $this->toDriver()->getNextOccurrence($date),
+        ])->save();
+
+        return $this;
     }
 
     /**
