@@ -25,6 +25,7 @@ Cadence provides a driver-based scheduling system for your Eloquent models using
 - [Usage](#usage)
   - [Adding Schedules](#adding-schedules)
   - [Timezones](#timezones)
+  - [Disabling Schedules](#disabling-schedules)
   - [Running Due Schedules](#running-due-schedules)
   - [Listening for Triggered Schedules](#listening-for-triggered-schedules)
 - [Drivers](#drivers)
@@ -75,6 +76,14 @@ This creates a `schedules` table with the following columns:
 - `timezone` — optional timezone for the schedule
 - `next_run_at` — precomputed next occurrence for efficient querying
 - `last_run_at` — timestamp of the last run
+- `disabled_at` — timestamp indicating the schedule is disabled
+
+If you're upgrading from an existing Cadence installation, publish and run the new migration before using the schedule enable / disable APIs:
+
+```bash
+php artisan vendor:publish --provider="DirectoryTree\Cadence\CadenceServiceProvider"
+php artisan migrate
+```
 
 ## Setup
 
@@ -144,6 +153,34 @@ $schedule = new CronSchedule('0 9 * * *');
 $schedule->setTimezone('America/New_York');
 
 $report->addSchedule($schedule);
+```
+
+### Disabling Schedules
+
+Schedules may be disabled without deleting them:
+
+```php
+$schedule->disable();
+```
+
+Disabling a schedule sets `disabled_at` and clears `next_run_at`, so the schedule will not be picked up by the `schedules:run` command.
+
+Enable the schedule again to compute its next occurrence from the current time:
+
+```php
+$schedule->enable();
+```
+
+You may also check or query schedule state:
+
+```php
+use DirectoryTree\Cadence\Schedule;
+
+$schedule->isEnabled();
+$schedule->isDisabled();
+
+Schedule::enabled()->get();
+Schedule::disabled()->get();
 ```
 
 ### Running Due Schedules
