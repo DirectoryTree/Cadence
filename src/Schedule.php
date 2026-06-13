@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\Cadence;
 
+use Carbon\CarbonInterface;
 use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -74,6 +75,19 @@ class Schedule extends Model
         $this->fill([
             'disabled_at' => null,
             'next_run_at' => $this->toDriver()->getNextOccurrence(now()),
+        ])->save();
+
+        return $this;
+    }
+
+    /**
+     * Advance the schedule to its next occurrence.
+     */
+    public function advance(CarbonInterface $date): static
+    {
+        $this->fill([
+            'last_run_at' => $date,
+            'next_run_at' => $this->toDriver()->getNextOccurrence($date),
         ])->save();
 
         return $this;

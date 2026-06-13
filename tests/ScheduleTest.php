@@ -175,6 +175,17 @@ it('can enable a disabled schedule', function () {
     expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
 });
 
+it('can advance a schedule to its next occurrence', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    $schedule->advance(Carbon::parse('2026-05-02 12:01:00'));
+
+    $schedule->refresh();
+
+    expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
+    expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-03 12:00:00');
+});
+
 it('scopes to enabled schedules', function () {
     $model = SchedulableModel::create();
     $enabled = $model->addSchedule(new CronSchedule('0 12 * * *'));

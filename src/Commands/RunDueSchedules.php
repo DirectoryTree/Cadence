@@ -29,13 +29,10 @@ class RunDueSchedules extends Command
     {
         $now = now();
 
-        Schedule::enabled()->due($now)->each(function (Schedule $schedule) use ($now) {
+        Schedule::due($now)->each(function (Schedule $schedule) use ($now) {
             ScheduleTriggered::dispatch($schedule);
 
-            $schedule->update([
-                'last_run_at' => $now,
-                'next_run_at' => $schedule->toDriver()->getNextOccurrence($now),
-            ]);
+            $schedule->advance($now);
         });
 
         return self::SUCCESS;
