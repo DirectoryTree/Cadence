@@ -49,6 +49,8 @@ abstract class Schedule implements ScheduleDriver
      */
     public function getNextOccurrence(CarbonInterface $after): ?CarbonInterface
     {
+        $after = $after->avoidMutation();
+
         if ($this->timezone) {
             $after = $after->setTimezone($this->timezone);
         }
