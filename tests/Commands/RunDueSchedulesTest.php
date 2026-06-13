@@ -10,17 +10,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
-    Schema::create('schedules', function (Blueprint $table) {
-        $table->id();
-        $table->morphs('schedulable');
-        $table->string('type');
-        $table->text('expression');
-        $table->string('timezone')->nullable();
-        $table->timestamp('next_run_at')->nullable()->index();
-        $table->timestamp('last_run_at')->nullable();
-        $table->timestamp('disabled_at')->nullable();
-        $table->timestamps();
-    });
+    $this->createScheduleTables();
 
     Schema::create('schedulable_models', function (Blueprint $table) {
         $table->id();
