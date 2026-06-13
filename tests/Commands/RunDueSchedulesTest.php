@@ -106,6 +106,25 @@ it('skips disabled schedules', function () {
     Event::assertNotDispatched(ScheduleTriggered::class);
 });
 
+it('runs due schedules when disabled at has not been migrated', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 12:00:00');
+
+    Schema::table('schedules', function (Blueprint $table) {
+        $table->dropColumn('disabled_at');
+    });
+
+    $model = SchedulableModel::create();
+    $model->addSchedule(new CronSchedule('0 12 * * *'));
+
+    // Advance time so the schedule is due
+    Carbon::setTestNow('2026-05-03 12:01:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatched(ScheduleTriggered::class);
+});
+
 it('does not pick up schedules with null next_run_at', function () {
     Event::fake();
     Carbon::setTestNow('2026-05-02 12:00:00');
