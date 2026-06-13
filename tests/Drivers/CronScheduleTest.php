@@ -38,6 +38,15 @@ it('computes the next occurrence with a timezone', function () {
     expect($next->timezone('UTC')->format('Y-m-d H:i:s'))->toBe('2026-05-02 13:00:00');
 });
 
+it('does not mutate the given date when computing with a timezone', function () {
+    $date = Carbon::parse('2026-05-02 12:00:00', 'UTC');
+
+    (new CronSchedule('0 9 * * *', 'America/New_York'))->getNextOccurrence($date);
+
+    expect($date->timezoneName)->toBe('UTC');
+    expect($date->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:00:00');
+});
+
 it('computes the next occurrence with timezone set via method', function () {
     Carbon::setTestNow('2026-05-02 12:00:00', 'UTC');
 
