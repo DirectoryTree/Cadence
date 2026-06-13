@@ -42,7 +42,7 @@ class Schedule extends Model
      */
     public function isDisabled(): bool
     {
-        return $this->disabled_at !== null;
+        return (bool) $this->disabled_at;
     }
 
     /**
