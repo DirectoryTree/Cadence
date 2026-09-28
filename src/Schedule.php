@@ -39,6 +39,20 @@ class Schedule extends Model
     }
 
     /**
+     * Convert a DateTime to a storable string in the application's timezone.
+     *
+     * Eloquent stores a date's wall-clock time without converting it, then reads it back
+     * in the default timezone. Converting first means a date in another timezone (such
+     * as a driver occurrence in the schedule's timezone) keeps the same moment.
+     */
+    public function fromDateTime($value)
+    {
+        return empty($value) ? $value : $this->asDateTime($value)
+            ->setTimezone(date_default_timezone_get())
+            ->format($this->getDateFormat());
+    }
+
+    /**
      * Determine if the schedule is disabled.
      */
     public function isDisabled(): bool

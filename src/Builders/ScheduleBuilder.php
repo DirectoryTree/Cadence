@@ -15,7 +15,7 @@ class ScheduleBuilder extends Builder
         return $this->where(function (Builder $query) use ($date) {
             $query
                 ->whereNotNull('next_run_at')
-                ->where('next_run_at', '<=', $date ?? now());
+                ->where('next_run_at', '<=', $this->model->fromDateTime($date ?? now()));
         });
     }
 

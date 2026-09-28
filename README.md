@@ -155,6 +155,8 @@ $schedule->setTimezone('America/New_York');
 $report->addSchedule($schedule);
 ```
 
+The schedule's timezone only determines when occurrences happen. Dates such as `next_run_at` are always stored in your application's timezone, so the `due()` scope and `schedules:run` command fire at the correct moment.
+
 ### Disabling Schedules
 
 Schedules may be disabled without deleting them:
