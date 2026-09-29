@@ -2,7 +2,9 @@
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
+use DirectoryTree\Cadence\Drivers\RruleSchedule;
 use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use DirectoryTree\Cadence\Schedule;
 use DirectoryTree\Cadence\Tests\Fixtures\SchedulableModel;
@@ -184,6 +186,72 @@ it('can advance a schedule to its next occurrence', function () {
 
     expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
     expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-03 12:00:00');
+});
+
+it('stores an interval as the maximum delay', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    $schedule->noLaterThan(CarbonInterval::minutes(5));
+
+    expect($schedule->refresh()->max_delay)->toBe(300);
+});
+
+it('resolves a deadline into a maximum delay from the next run', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    $schedule->noLaterThan(now()->endOfDay());
+
+    expect($schedule->refresh()->max_delay)->toBe(43199);
+});
+
+it('shifts a deadline before the next run forward by whole days', function () {
+    Carbon::setTestNow('2026-05-02 13:00:00');
+
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-03 12:00:00');
+
+    $deadline = now()->endOfDay();
+
+    $schedule->noLaterThan($deadline);
+
+    expect($schedule->refresh()->max_delay)->toBe(43199);
+    expect($deadline->format('Y-m-d H:i:s'))->toBe('2026-05-02 23:59:59');
+});
+
+it('resolves a deadline from the driver for a disabled schedule', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    $schedule->disable();
+
+    $schedule->noLaterThan(now()->endOfDay());
+
+    expect($schedule->refresh()->max_delay)->toBe(43199);
+});
+
+it('throws when the maximum delay interval is negative', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    $schedule->noLaterThan(CarbonInterval::minutes(5)->invert());
+})->throws(InvalidArgumentException::class, 'The maximum delay must not be negative.');
+
+it('throws when resolving a deadline for an exhausted schedule', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new RruleSchedule('DTSTART=20260101T090000;FREQ=DAILY;COUNT=1'));
+
+    expect($schedule->next_run_at)->toBeNull();
+
+    $schedule->noLaterThan(now()->endOfDay());
+})->throws(LogicException::class, 'Cannot resolve a maximum delay from a date for a schedule without a next occurrence.');
+
+it('is missed only when later than the maximum delay', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    expect($schedule->isMissed(Carbon::parse('2026-05-10 00:00:00')))->toBeFalse();
+
+    $schedule->noLaterThan(CarbonInterval::minutes(5));
+
+    expect($schedule->isMissed(Carbon::parse('2026-05-02 12:05:00')))->toBeFalse();
+    expect($schedule->isMissed(Carbon::parse('2026-05-02 12:05:01')))->toBeTrue();
 });
 
 it('scopes to enabled schedules', function () {

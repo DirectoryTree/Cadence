@@ -77,8 +77,9 @@ This creates a `schedules` table with the following columns:
 - `next_run_at` — precomputed next occurrence for efficient querying
 - `last_run_at` — timestamp of the last run
 - `disabled_at` — timestamp indicating the schedule is disabled
+- `max_delay` — optional number of seconds a run may be late before it is missed
 
-If you're upgrading from an existing Cadence installation, publish and run the new migration before using the schedule enable / disable APIs:
+If you're upgrading from an existing Cadence installation, publish and run the new migrations before using the schedule enable / disable or `noLaterThan()` APIs:
 
 ```bash
 php artisan vendor:publish --provider="DirectoryTree\Cadence\CadenceServiceProvider"
@@ -183,6 +184,28 @@ Schedule::enabled()->get();
 Schedule::disabled()->get();
 ```
 
+### Limiting Late Runs
+
+By default, a due schedule fires however late the `schedules:run` command picks it up. Cap how late a run may be with `noLaterThan()`, using an interval or a deadline:
+
+```php
+use Carbon\CarbonInterval;
+
+// Fire at most 5 minutes after the scheduled time
+$schedule->noLaterThan(CarbonInterval::minutes(5));
+
+// Fire no later than the end of the scheduled day
+$schedule->noLaterThan(now()->endOfDay());
+```
+
+Either form is stored as `max_delay`, in seconds after `next_run_at`. A deadline is measured from the schedule's next occurrence; a deadline at or before that occurrence is moved forward by whole days, keeping its time of day. The same delay then applies to every occurrence.
+
+When a due schedule is later than its `max_delay`, `schedules:run` dispatches a `ScheduleMissed` event instead of `ScheduleTriggered`, and advances `next_run_at` without updating `last_run_at`. You may also check it directly:
+
+```php
+$schedule->isMissed(); // Compared against now()
+```
+
 ### Running Due Schedules
 
 Register the `schedules:run` command in your application's scheduler to run every minute:
@@ -197,7 +220,7 @@ Schedule::command('schedules:run')
     ->everyMinute();
 ```
 
-This command queries all schedules where `next_run_at <= now()`, dispatches a `ScheduleTriggered` event for each, and advances `next_run_at` to the next occurrence.
+This command queries all schedules where `next_run_at <= now()`, dispatches a `ScheduleTriggered` event for each, and advances `next_run_at` to the next occurrence. Schedules later than their [`noLaterThan()`](#limiting-late-runs) cap dispatch a `ScheduleMissed` event instead.
 
 ### Listening for Triggered Schedules
 
@@ -225,6 +248,8 @@ class GenerateReport implements ShouldQueue
 ```
 
 Register it in your `EventServiceProvider` or use event discovery.
+
+Listen for the `ScheduleMissed` event the same way to react to runs skipped by a `noLaterThan()` cap. It carries the schedule with its missed `next_run_at`.
 
 ## Drivers
 
