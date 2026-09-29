@@ -1,8 +1,10 @@
 <?php
 
 use Carbon\Carbon;
+use Carbon\CarbonInterval;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
 use DirectoryTree\Cadence\Drivers\RruleSchedule;
+use DirectoryTree\Cadence\Events\ScheduleMissed;
 use DirectoryTree\Cadence\Events\ScheduleTriggered;
 use DirectoryTree\Cadence\Tests\Fixtures\SchedulableModel;
 use Illuminate\Database\Schema\Blueprint;
@@ -112,6 +114,96 @@ it('runs due schedules when disabled at has not been migrated', function () {
 
     Schema::table('schedules', function (Blueprint $table) {
         $table->dropColumn('disabled_at');
+    });
+
+    $model = SchedulableModel::create();
+    $model->addSchedule(new CronSchedule('0 12 * * *'));
+
+    // Advance time so the schedule is due
+    Carbon::setTestNow('2026-05-03 12:01:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatched(ScheduleTriggered::class);
+});
+
+it('dispatches missed event for schedules later than their deadline', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 08:00:00');
+
+    $schedule = SchedulableModel::create()
+        ->addSchedule(new CronSchedule('0 9 * * *'))
+        ->noLaterThan(now()->endOfDay());
+
+    expect($schedule->refresh()->max_delay)->toBe(53999);
+
+    Carbon::setTestNow('2026-05-03 00:30:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleMissed::class, 1);
+    Event::assertNotDispatched(ScheduleTriggered::class);
+
+    $schedule->refresh();
+
+    expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-03 09:00:00');
+    expect($schedule->last_run_at)->toBeNull();
+});
+
+it('triggers schedules within their deadline', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 08:00:00');
+
+    SchedulableModel::create()
+        ->addSchedule(new CronSchedule('0 9 * * *'))
+        ->noLaterThan(now()->endOfDay());
+
+    Carbon::setTestNow('2026-05-02 23:59:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatched(ScheduleTriggered::class);
+    Event::assertNotDispatched(ScheduleMissed::class);
+});
+
+it('triggers schedules within their maximum delay interval', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 10:00:00');
+
+    SchedulableModel::create()
+        ->addSchedule(new CronSchedule('0 12 * * *'))
+        ->noLaterThan(CarbonInterval::minutes(5));
+
+    Carbon::setTestNow('2026-05-02 12:04:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatched(ScheduleTriggered::class);
+    Event::assertNotDispatched(ScheduleMissed::class);
+});
+
+it('dispatches missed event for schedules later than their maximum delay interval', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 10:00:00');
+
+    SchedulableModel::create()
+        ->addSchedule(new CronSchedule('0 12 * * *'))
+        ->noLaterThan(CarbonInterval::minutes(5));
+
+    Carbon::setTestNow('2026-05-02 12:06:00');
+
+    $this->artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatched(ScheduleMissed::class);
+    Event::assertNotDispatched(ScheduleTriggered::class);
+});
+
+it('runs due schedules when max delay has not been migrated', function () {
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 12:00:00');
+
+    Schema::table('schedules', function (Blueprint $table) {
+        $table->dropColumn('max_delay');
     });
 
     $model = SchedulableModel::create();
