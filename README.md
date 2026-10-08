@@ -1,23 +1,29 @@
 <p align="center">
-<img src="https://github.com/DirectoryTree/Cadence/blob/master/art/logo.svg" width="250">
+    <img src="https://github.com/DirectoryTree/Cadence/blob/master/art/logo.svg" width="300" alt="Cadence">
+</p>
+
+<p align="center">Model-based scheduling for Laravel.</p>
+
+<p align="center">
+    <a href="https://github.com/DirectoryTree/Cadence/actions/workflows/run-tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/DirectoryTree/Cadence/run-tests.yml?branch=master&amp;style=flat-square" alt="Tests"></a>
+    <a href="https://packagist.org/packages/directorytree/cadence"><img src="https://img.shields.io/packagist/dt/directorytree/cadence.svg?style=flat-square" alt="Total Downloads"></a>
+    <a href="https://packagist.org/packages/directorytree/cadence"><img src="https://img.shields.io/packagist/v/directorytree/cadence.svg?style=flat-square" alt="Latest Version"></a>
+    <a href="https://github.com/DirectoryTree/Cadence/blob/master/LICENSE.md"><img src="https://img.shields.io/github/license/DirectoryTree/Cadence?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-Model-based scheduling for Laravel.
-</p>
-
-<p align="center">
-<a href="https://github.com/directorytree/cadence/actions" target="_blank"><img src="https://img.shields.io/github/actions/workflow/status/directorytree/cadence/run-tests.yml?branch=master&style=flat-square"/></a>
-<a href="https://packagist.org/packages/directorytree/cadence" target="_blank"><img src="https://img.shields.io/packagist/v/directorytree/cadence.svg?style=flat-square"/></a>
-<a href="https://packagist.org/packages/directorytree/cadence" target="_blank"><img src="https://img.shields.io/packagist/dt/directorytree/cadence.svg?style=flat-square"/></a>
-<a href="https://packagist.org/packages/directorytree/cadence" target="_blank"><img src="https://img.shields.io/packagist/l/directorytree/cadence.svg?style=flat-square"/></a>
+    <a href="#contents">Contents</a>
+    <span> · </span>
+    <a href="#installation">Installation</a>
+    <span> · </span>
+    <a href="#usage">Usage</a>
 </p>
 
 ---
 
 Cadence provides a driver-based scheduling system for your Eloquent models using cron expressions or RRULE recurrence patterns. Attach one or many schedules to any model, and Cadence will track and dispatch events when they're due.
 
-## Index
+## Contents
 
 - [Requirements](#requirements)
 - [Installation](#installation)
