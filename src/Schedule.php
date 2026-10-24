@@ -74,9 +74,7 @@ class Schedule extends Model
     {
         $this->fill([
             'disabled_at' => null,
-            'next_run_at' => $this->toDriver()
-                ->getNextOccurrence(now())
-                ?->setTimezone(config('app.timezone')),
+            'next_run_at' => $this->toDriver()->getNextOccurrence(now()),
         ])->save();
 
         return $this;
@@ -88,11 +86,8 @@ class Schedule extends Model
     public function advance(CarbonInterface $date): static
     {
         $this->fill([
-            'last_run_at' => $date->avoidMutation()
-                ->setTimezone(config('app.timezone')),
-            'next_run_at' => $this->toDriver()
-                ->getNextOccurrence($date)
-                ?->setTimezone(config('app.timezone')),
+            'last_run_at' => $date,
+            'next_run_at' => $this->toDriver()->getNextOccurrence($date),
         ])->save();
 
         return $this;
