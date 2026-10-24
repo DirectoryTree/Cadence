@@ -36,7 +36,9 @@ class RunDueSchedules extends Command
 
                 ScheduleTriggered::dispatch($schedule, $dispatchedAt);
 
-                $schedule->advance($dispatchedAt);
+                if ($schedule->exists && $schedule->isEnabled()) {
+                    $schedule->advance($dispatchedAt);
+                }
             } catch (Throwable $e) {
                 report($e);
             }
