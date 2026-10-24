@@ -36,8 +36,8 @@ class RecurrSchedule extends Schedule
 
         $transformer = $this->newTransformer();
 
-        if (static::$tapUsing) {
-            (static::$tapUsing)($rule, $transformer, $this);
+        if ($callback = static::$tapCallbacks[static::class] ?? null) {
+            $callback($rule, $transformer, $this);
         }
 
         $recurrences = $transformer->transform($rule, $this->newConstraint($after, $rule), false);

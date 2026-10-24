@@ -18,9 +18,11 @@ abstract class Schedule implements ScheduleDriver
     protected ?string $timezone = null;
 
     /**
-     * The tap callback for configuring the underlying implementation.
+     * The tap callbacks for configuring each driver's underlying implementation.
+     *
+     * @var array<class-string, Closure>
      */
-    protected static ?Closure $tapUsing = null;
+    protected static array $tapCallbacks = [];
 
     /**
      * Create a new schedule instance.
@@ -36,7 +38,11 @@ abstract class Schedule implements ScheduleDriver
      */
     public static function tap(?Closure $callback): void
     {
-        static::$tapUsing = $callback;
+        if ($callback === null) {
+            unset(static::$tapCallbacks[static::class]);
+        } else {
+            static::$tapCallbacks[static::class] = $callback;
+        }
     }
 
     /**

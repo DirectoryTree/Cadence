@@ -30,8 +30,8 @@ class RruleSchedule extends Schedule
     {
         $rrule = new RRule($this->toRfcString());
 
-        if (static::$tapUsing) {
-            (static::$tapUsing)($rrule);
+        if ($callback = static::$tapCallbacks[static::class] ?? null) {
+            $callback($rrule);
         }
 
         $occurrences = $rrule->getOccurrencesAfter($after, false, 1);

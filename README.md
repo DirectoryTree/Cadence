@@ -344,6 +344,8 @@ Schedule::driver('custom', CustomSchedule::class);
 
 Each driver exposes a static `tap` method to configure the underlying library instance before it's used:
 
+Callbacks are scoped to the concrete driver class. Configuring or clearing one driver's callback does not affect other drivers or subclasses.
+
 ```php
 use Cron\CronExpression;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
