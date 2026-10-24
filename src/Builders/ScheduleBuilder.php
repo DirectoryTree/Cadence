@@ -12,10 +12,12 @@ class ScheduleBuilder extends Builder
      */
     public function due(?CarbonInterface $date = null): Builder
     {
+        $date = ($date ?? now())->avoidMutation()->setTimezone(config('app.timezone'));
+
         return $this->where(function (Builder $query) use ($date) {
             $query
                 ->whereNotNull('next_run_at')
-                ->where('next_run_at', '<=', $this->model->fromDateTime($date ?? now()));
+                ->where('next_run_at', '<=', $date);
         });
     }
 

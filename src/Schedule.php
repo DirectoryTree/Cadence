@@ -39,20 +39,6 @@ class Schedule extends Model
     }
 
     /**
-     * Convert a DateTime to a storable string in the application's timezone.
-     *
-     * Eloquent stores a date's wall-clock time without converting it, then reads it back
-     * in the default timezone. Converting first means a date in another timezone (such
-     * as a driver occurrence in the schedule's timezone) keeps the same moment.
-     */
-    public function fromDateTime($value)
-    {
-        return empty($value) ? $value : $this->asDateTime($value)
-            ->setTimezone(date_default_timezone_get())
-            ->format($this->getDateFormat());
-    }
-
-    /**
      * Determine if the schedule is disabled.
      */
     public function isDisabled(): bool
@@ -88,7 +74,9 @@ class Schedule extends Model
     {
         $this->fill([
             'disabled_at' => null,
-            'next_run_at' => $this->toDriver()->getNextOccurrence(now()),
+            'next_run_at' => $this->toDriver()
+                ->getNextOccurrence(now())
+                ?->setTimezone(config('app.timezone')),
         ])->save();
 
         return $this;
@@ -100,8 +88,11 @@ class Schedule extends Model
     public function advance(CarbonInterface $date): static
     {
         $this->fill([
-            'last_run_at' => $date,
-            'next_run_at' => $this->toDriver()->getNextOccurrence($date),
+            'last_run_at' => $date->avoidMutation()
+                ->setTimezone(config('app.timezone')),
+            'next_run_at' => $this->toDriver()
+                ->getNextOccurrence($date)
+                ?->setTimezone(config('app.timezone')),
         ])->save();
 
         return $this;
