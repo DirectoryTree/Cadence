@@ -3,6 +3,8 @@
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
+use DirectoryTree\Cadence\Drivers\RecurrSchedule;
+use DirectoryTree\Cadence\Drivers\RruleSchedule;
 use DirectoryTree\Cadence\Drivers\ScheduleDriver;
 use DirectoryTree\Cadence\Schedule;
 use DirectoryTree\Cadence\Tests\Fixtures\SchedulableModel;
@@ -37,6 +39,60 @@ it('calculates next_run_at on creation', function () {
     expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:00:00');
 });
 
+it('stores the default recurrence start and timezone for later evaluations', function ($driverClass) {
+    $schedule = SchedulableModel::create()->addSchedule(
+        new $driverClass('FREQ=DAILY;INTERVAL=3;BYHOUR=9;BYMINUTE=0;BYSECOND=0', 'America/New_York')
+    );
+
+    expect($schedule->expression)->toBe('FREQ=DAILY;INTERVAL=3;BYHOUR=9;BYMINUTE=0;BYSECOND=0;DTSTART=20260502T060000')
+        ->and($schedule->next_run_at->toDateTimeString())->toBe('2026-05-02 13:00:00');
+
+    Carbon::setTestNow('2026-05-06 10:00:00');
+
+    $schedule->refresh()->advance(now());
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-08 13:00:00');
+})->with([RruleSchedule::class, RecurrSchedule::class]);
+
+it('does not restart the count when a recurrence is reloaded', function ($driverClass) {
+    $schedule = SchedulableModel::create()->addSchedule(new $driverClass('FREQ=SECONDLY;COUNT=2'));
+
+    expect($schedule->next_run_at->toDateTimeString())->toBe('2026-05-02 10:00:01');
+
+    Carbon::setTestNow('2026-05-02 10:00:05');
+
+    $schedule->refresh()->advance(now());
+
+    expect($schedule->refresh()->next_run_at)->toBeNull()
+        ->and($schedule->timezone)->toBe('UTC');
+})->with([RruleSchedule::class, RecurrSchedule::class]);
+
+it('preserves the application timezone for an implicit recurrence start', function ($driverClass) {
+    $originalTimezone = date_default_timezone_get();
+
+    config(['app.timezone' => 'America/Toronto']);
+    date_default_timezone_set('America/Toronto');
+    Carbon::setTestNow(Carbon::parse('2026-05-02 08:00:00', 'America/Toronto'));
+
+    try {
+        $schedule = SchedulableModel::create()->addSchedule(
+            new $driverClass('FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0')
+        );
+
+        expect($schedule->timezone)->toBe('America/Toronto')
+            ->and($schedule->expression)->toBe('FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0;DTSTART=20260502T080000')
+            ->and($schedule->next_run_at->toDateTimeString())->toBe('2026-05-02 09:00:00');
+
+        Carbon::setTestNow(Carbon::parse('2026-05-02 10:00:00', 'America/Toronto'));
+
+        $schedule->refresh()->advance(now());
+
+        expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00');
+    } finally {
+        date_default_timezone_set($originalTimezone);
+    }
+})->with([RruleSchedule::class, RecurrSchedule::class]);
+
 it('stores timezone on creation', function () {
     $schedule = SchedulableModel::create()->addSchedule(
         new CronSchedule('0 9 * * *', 'America/New_York')
@@ -50,6 +106,86 @@ it('stores null timezone when none provided', function () {
 
     expect($schedule->timezone)->toBeNull();
 });
+
+it('recalculates the next run when the timezone changes', function ($driverClass, $expression) {
+    $schedule = SchedulableModel::create()->addSchedule(new $driverClass($expression, 'America/New_York'));
+    $schedule->update(['last_run_at' => Carbon::parse('2026-05-01 13:01:00')]);
+    $storedExpression = $schedule->expression;
+
+    Carbon::setTestNow('2026-05-02 13:30:00');
+
+    $schedule->update(['timezone' => 'America/Los_Angeles']);
+    $schedule->refresh();
+
+    expect($schedule->next_run_at->toDateTimeString())->toBe('2026-05-02 16:00:00')
+        ->and($schedule->last_run_at->toDateTimeString())->toBe('2026-05-01 13:01:00')
+        ->and($schedule->expression)->toBe($storedExpression)
+        ->and($schedule->isEnabled())->toBeTrue();
+})->with([
+    'cron' => [CronSchedule::class, '0 9 * * *'],
+    'rrule' => [RruleSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+    'recurr' => [RecurrSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+]);
+
+it('keeps a schedule disabled when its timezone changes', function ($driverClass, $expression) {
+    $schedule = SchedulableModel::create()->addSchedule(new $driverClass($expression, 'America/New_York'));
+    $schedule->update(['last_run_at' => Carbon::parse('2026-05-01 13:01:00')]);
+    $schedule->disable();
+    $disabledAt = $schedule->disabled_at->toDateTimeString();
+    $storedExpression = $schedule->expression;
+
+    Carbon::setTestNow('2026-05-02 13:30:00');
+
+    $schedule->update(['timezone' => 'America/Los_Angeles']);
+    $schedule->refresh();
+
+    expect($schedule->next_run_at)->toBeNull()
+        ->and($schedule->disabled_at->toDateTimeString())->toBe($disabledAt)
+        ->and($schedule->last_run_at->toDateTimeString())->toBe('2026-05-01 13:01:00')
+        ->and($schedule->expression)->toBe($storedExpression);
+
+    $schedule->enable();
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-02 16:00:00');
+})->with([
+    'cron' => [CronSchedule::class, '0 9 * * *'],
+    'rrule' => [RruleSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+    'recurr' => [RecurrSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+]);
+
+it('recalculates the next run in the default timezone when the timezone is cleared', function ($driverClass, $expression) {
+    $schedule = SchedulableModel::create()->addSchedule(new $driverClass($expression, 'America/New_York'));
+
+    $schedule->update(['timezone' => null]);
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00');
+})->with([
+    'cron' => [CronSchedule::class, '0 9 * * *'],
+    'rrule' => [RruleSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+    'recurr' => [RecurrSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+]);
+
+it('does not recalculate the next run when the timezone is unchanged', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 9 * * *', 'America/New_York'));
+    $schedule->update(['next_run_at' => Carbon::parse('2026-05-10 13:00:00')]);
+
+    $schedule->update(['timezone' => 'America/New_York']);
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-10 13:00:00');
+});
+
+it('preserves the recurrence count when the timezone changes', function ($driverClass) {
+    $schedule = SchedulableModel::create()->addSchedule(
+        new $driverClass('FREQ=DAILY;COUNT=2;DTSTART=20260501T090000', 'America/New_York')
+    );
+
+    Carbon::setTestNow('2026-05-02 18:00:00');
+
+    $schedule->update(['timezone' => 'America/Los_Angeles']);
+
+    expect($schedule->refresh()->next_run_at)->toBeNull()
+        ->and($schedule->expression)->toBe('FREQ=DAILY;COUNT=2;DTSTART=20260501T090000');
+})->with([RruleSchedule::class, RecurrSchedule::class]);
 
 it('resolves the driver from a stored schedule', function () {
     $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));

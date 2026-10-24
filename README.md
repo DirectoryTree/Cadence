@@ -163,6 +163,14 @@ $report->addSchedule($schedule);
 
 The schedule's timezone only determines when occurrences happen. Cadence converts computed run dates to your application's timezone before storing them, so the `due()` scope and `schedules:run` command fire at the correct moment.
 
+Saving a timezone change on a schedule recalculates `next_run_at` from the current time. It preserves `last_run_at`, and disabled schedules keep `next_run_at` set to `null`.
+
+```php
+$schedule->update(['timezone' => 'America/Los_Angeles']);
+```
+
+For RRULE schedules with a local `DTSTART`, the start keeps the same local date and time in the new timezone. Changing the timezone does not reset the start or the rule's `COUNT` or `INTERVAL`.
+
 ### Disabling Schedules
 
 Schedules may be disabled without deleting them:
@@ -299,6 +307,10 @@ use DirectoryTree\Cadence\Drivers\RecurrSchedule;
 new RecurrSchedule('FREQ=WEEKLY;BYDAY=MO,WE,FR');
 new RecurrSchedule('FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1');
 ```
+
+Both RRULE drivers add a `DTSTART` when the expression is first evaluated or serialized. The start uses the schedule's timezone, or the application's default timezone when none is provided. `addSchedule()` stores the start and timezone so `COUNT` and `INTERVAL` stay anchored when the schedule is reloaded.
+
+To choose a specific start, include `DTSTART` in the expression. Explicit starts are preserved. Existing stored expressions without `DTSTART` should be updated with the intended start; their original implicit start was not recorded.
 
 ### Custom Drivers
 

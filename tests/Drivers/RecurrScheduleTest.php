@@ -60,7 +60,9 @@ it('computes next occurrence with timezone set via method', function () {
 });
 
 it('serializes to expression', function () {
-    expect((new RecurrSchedule('FREQ=DAILY;COUNT=5'))->toExpression())->toBe('FREQ=DAILY;COUNT=5');
+    Carbon::setTestNow('2026-05-02 10:00:00');
+
+    expect((new RecurrSchedule('FREQ=DAILY;COUNT=5'))->toExpression())->toBe('FREQ=DAILY;COUNT=5;DTSTART=20260502T100000');
 });
 
 it('reconstitutes from expression', function () {

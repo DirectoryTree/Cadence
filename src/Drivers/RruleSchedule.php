@@ -10,6 +10,20 @@ use RRule\RRule;
 class RruleSchedule extends Schedule
 {
     /**
+     * Serialize the expression with a stable start in the schedule's timezone.
+     */
+    public function toExpression(): string
+    {
+        if (! RruleExpression::hasDtstart($this->expression)) {
+            $this->timezone ??= date_default_timezone_get();
+
+            $this->expression .= ';DTSTART='.now($this->timezone)->format('Ymd\THis');
+        }
+
+        return $this->expression;
+    }
+
+    /**
      * Resolve the next occurrence after the given date.
      */
     protected function resolveNextOccurrence(CarbonInterface $after): ?CarbonInterface
@@ -36,7 +50,7 @@ class RruleSchedule extends Schedule
      */
     protected function toRfcString(): string
     {
-        [$expression, $dtstart] = RruleExpression::extractDtstart($this->expression);
+        [$expression, $dtstart] = RruleExpression::extractDtstart($this->toExpression());
 
         if ($dtstart) {
             $tzid = $this->timezone ? ";TZID={$this->timezone}" : '';

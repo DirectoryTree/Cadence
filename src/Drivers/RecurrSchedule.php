@@ -14,6 +14,20 @@ use Recurr\Transformer\ArrayTransformer;
 class RecurrSchedule extends Schedule
 {
     /**
+     * Serialize the expression with a stable start in the schedule's timezone.
+     */
+    public function toExpression(): string
+    {
+        if (! RruleExpression::hasDtstart($this->expression)) {
+            $this->timezone ??= date_default_timezone_get();
+
+            $this->expression .= ';DTSTART='.now($this->timezone)->format('Ymd\THis');
+        }
+
+        return $this->expression;
+    }
+
+    /**
      * Resolve the next occurrence after the given date.
      */
     protected function resolveNextOccurrence(CarbonInterface $after): ?CarbonInterface
@@ -40,7 +54,7 @@ class RecurrSchedule extends Schedule
      */
     protected function newRule(): Rule
     {
-        [$expression, $dtstart] = RruleExpression::extractDtstart($this->expression);
+        [$expression, $dtstart] = RruleExpression::extractDtstart($this->toExpression());
 
         if ($dtstart) {
             $timezone = $this->timezone ? new DateTimeZone($this->timezone) : null;

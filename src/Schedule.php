@@ -17,6 +17,20 @@ class Schedule extends Model
     protected $guarded = [];
 
     /**
+     * Boot the model.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (self $schedule) {
+            if ($schedule->isDirty('timezone')) {
+                $schedule->next_run_at = $schedule->isEnabled()
+                    ? $schedule->nextRunAt(now())
+                    : null;
+            }
+        });
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -74,9 +88,7 @@ class Schedule extends Model
     {
         $this->fill([
             'disabled_at' => null,
-            'next_run_at' => $this->toDriver()
-                ->getNextOccurrence(now())
-                ?->setTimezone(config('app.timezone')),
+            'next_run_at' => $this->nextRunAt(now()),
         ])->save();
 
         return $this;
@@ -90,12 +102,20 @@ class Schedule extends Model
         $this->fill([
             'last_run_at' => $date->avoidMutation()
                 ->setTimezone(config('app.timezone')),
-            'next_run_at' => $this->toDriver()
-                ->getNextOccurrence($date)
-                ?->setTimezone(config('app.timezone')),
+            'next_run_at' => $this->nextRunAt($date),
         ])->save();
 
         return $this;
+    }
+
+    /**
+     * Calculate the next run in the application's timezone.
+     */
+    protected function nextRunAt(CarbonInterface $after): ?CarbonInterface
+    {
+        return $this->toDriver()
+            ->getNextOccurrence($after)
+            ?->setTimezone(config('app.timezone'));
     }
 
     /**
