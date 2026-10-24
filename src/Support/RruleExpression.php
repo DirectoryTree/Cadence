@@ -5,6 +5,14 @@ namespace DirectoryTree\Cadence\Support;
 class RruleExpression
 {
     /**
+     * Determine if the expression includes an explicit start.
+     */
+    public static function hasDtstart(string $expression): bool
+    {
+        return (bool) preg_match('/(?:^|[;\r\n])DTSTART[=;:]/i', $expression);
+    }
+
+    /**
      * Extract the DTSTART value from an RRULE expression.
      *
      * @return array{string, string|null}

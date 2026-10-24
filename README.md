@@ -300,6 +300,10 @@ new RecurrSchedule('FREQ=WEEKLY;BYDAY=MO,WE,FR');
 new RecurrSchedule('FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1');
 ```
 
+Both RRULE drivers add a `DTSTART` when the expression is first evaluated or serialized. The start uses the schedule's timezone, or the application's default timezone when none is provided. `addSchedule()` stores the start and timezone so `COUNT` and `INTERVAL` stay anchored when the schedule is reloaded.
+
+To choose a specific start, include `DTSTART` in the expression. Explicit starts are preserved. Existing stored expressions without `DTSTART` should be updated with the intended start; their original implicit start was not recorded.
+
 ### Custom Drivers
 
 Create a class that extends the base `Schedule` driver:
