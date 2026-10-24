@@ -29,10 +29,12 @@ class RunDueSchedules extends Command
     {
         $now = now();
 
-        Schedule::due($now)->eachById(function (Schedule $schedule) use ($now) {
-            ScheduleTriggered::dispatch($schedule);
+        Schedule::due($now)->eachById(function (Schedule $schedule) {
+            $dispatchedAt = now();
 
-            $schedule->advance($now);
+            ScheduleTriggered::dispatch($schedule, $dispatchedAt);
+
+            $schedule->advance($dispatchedAt);
         });
 
         return self::SUCCESS;

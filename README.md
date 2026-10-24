@@ -234,6 +234,26 @@ class GenerateReport implements ShouldQueue
 
 Register it in your `EventServiceProvider` or use event discovery.
 
+### Handling Late Runs
+
+Each `ScheduleTriggered` event includes two immutable timestamps:
+
+- `scheduledAt` — when the occurrence was due
+- `dispatchedAt` — when Cadence dispatched the occurrence
+
+These timestamps remain unchanged when the schedule advances, including when a queued listener reloads the schedule from the database. Use them to decide whether a late occurrence is still useful. For example, a queued listener can decline work dispatched more than five minutes late:
+
+```php
+public function shouldQueue(ScheduleTriggered $event): bool
+{
+    return $event->dispatchedAt->lessThanOrEqualTo(
+        $event->scheduledAt->addMinutes(5)
+    );
+}
+```
+
+Cadence still updates `last_run_at` and advances `next_run_at` when a listener declines the work. These fields track Cadence triggering the occurrence, not whether a listener completes its work. The timestamps describe dispatch timing; any delay waiting in a queue is separate.
+
 ## Drivers
 
 Cadence uses a driver-based architecture. Drivers are automatically registered when their backing library is installed.
