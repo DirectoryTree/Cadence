@@ -33,7 +33,7 @@ class RecurrSchedule extends Schedule
         }
 
         $recurrences = $transformer->transform(
-            $rule, new RecurrAfterConstraint($after->toDateTime(), $rule->getCount()), false
+            $rule, new RecurrAfterConstraint($after->toDateTime(), $rule->getCount(), $rule->getExDates()), false
         );
 
         if ($first = $recurrences->first()) {

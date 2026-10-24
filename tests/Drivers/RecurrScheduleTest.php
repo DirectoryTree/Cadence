@@ -126,3 +126,23 @@ it('preserves count when the transformation limit is customized', function () {
         RecurrSchedule::tap(null);
     }
 });
+
+it('skips excluded occurrences before returning the next date', function ($exclusion) {
+    $driver = new RecurrSchedule("FREQ=DAILY;EXDATE={$exclusion};DTSTART=20260501T090000", 'America/New_York');
+
+    $next = $driver->getNextOccurrence(Carbon::parse('2026-05-01 10:00:00', 'America/New_York'));
+
+    expect($next?->toDateTimeString())->toBe('2026-05-03 09:00:00');
+})->with([
+    'date only' => '20260502',
+    'local time' => '20260502T090000',
+    'UTC time' => '20260502T130000Z',
+]);
+
+it('returns null when the remaining occurrences are excluded', function ($limit) {
+    $driver = new RecurrSchedule("FREQ=DAILY;{$limit};EXDATE=20260502T090000,20260503T090000;DTSTART=20260501T090000");
+
+    $next = $driver->getNextOccurrence(Carbon::parse('2026-05-01 10:00:00', 'UTC'));
+
+    expect($next)->toBeNull();
+})->with(['COUNT=3', 'UNTIL=20260503T090000Z']);
