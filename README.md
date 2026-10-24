@@ -236,12 +236,12 @@ class GenerateReport implements ShouldQueue
 {
     public function shouldQueue(ScheduleTriggered $event): bool
     {
-        return $event->schedule->schedulable_type = Report::class;
+        return $event->schedule->schedulable_type === Report::class;
     }
 
     public function handle(ScheduleTriggered $event): void
     {
-        $event->schedulable->generate();
+        $event->schedule->schedulable->generate();
     }
 }
 ```
@@ -335,9 +335,9 @@ Then register it in your `AppServiceProvider`:
 
 ```php
 use App\Drivers\CustomSchedule;
-use DirectoryTree\Cadence\Schedule;
+use DirectoryTree\Cadence\Cadence;
 
-Schedule::driver('custom', CustomSchedule::class);
+Cadence::register('custom', CustomSchedule::class);
 ```
 
 ## Customizing Drivers
