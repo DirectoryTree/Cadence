@@ -5,9 +5,11 @@ use Carbon\CarbonImmutable;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
 use DirectoryTree\Cadence\Drivers\RruleSchedule;
 use DirectoryTree\Cadence\Events\ScheduleTriggered;
+use DirectoryTree\Cadence\Schedule;
 use DirectoryTree\Cadence\Tests\Fixtures\SchedulableModel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Schema;
 
 use function Pest\Laravel\artisan;
@@ -363,4 +365,108 @@ it('dispatches events for multiple due schedules', function () {
     $this->artisan('schedules:run')->assertSuccessful();
 
     Event::assertDispatchedTimes(ScheduleTriggered::class, 2);
+});
+
+it('continues running schedules when a listener throws and retries the failed occurrence', function ($exceptionClass) {
+    Exceptions::fake();
+    Carbon::setTestNow('2026-05-02 08:00:00');
+
+    $model = SchedulableModel::create();
+    $failed = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $second = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $third = $model->addSchedule(new CronSchedule('0 9 * * *'));
+
+    $exception = new $exceptionClass('Schedule listener failed.');
+    $handled = [];
+
+    Event::listen(ScheduleTriggered::class, function ($event) use ($failed, $exception, &$handled) {
+        if ($event->schedule->is($failed)) {
+            throw $exception;
+        }
+
+        $handled[] = $event->schedule->id;
+    });
+
+    Carbon::setTestNow('2026-05-02 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    Exceptions::assertReported($exceptionClass);
+    Exceptions::assertReportedCount(1);
+
+    expect($handled)->toBe([$second->id, $third->id])
+        ->and($failed->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-02 09:00:00')
+        ->and($failed->last_run_at)->toBeNull()
+        ->and($second->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00')
+        ->and($third->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00');
+
+    Event::forget(ScheduleTriggered::class);
+    Event::listen(ScheduleTriggered::class, function ($event) use (&$handled) {
+        $handled[] = $event->schedule->id;
+    });
+
+    artisan('schedules:run')->assertSuccessful();
+
+    expect($handled)->toBe([$second->id, $third->id, $failed->id])
+        ->and($failed->refresh()->last_run_at->toDateTimeString())->toBe('2026-05-02 09:01:00')
+        ->and($failed->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00');
+})->with([RuntimeException::class, Error::class]);
+
+it('continues running schedules when a driver cannot calculate the next occurrence', function () {
+    Exceptions::fake();
+    Event::fake();
+    Carbon::setTestNow('2026-05-02 08:00:00');
+
+    $model = SchedulableModel::create();
+    $failed = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $next = $model->addSchedule(new CronSchedule('0 9 * * *'));
+
+    $failed->update(['expression' => 'invalid']);
+
+    Carbon::setTestNow('2026-05-02 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    Exceptions::assertReported(InvalidArgumentException::class);
+    Exceptions::assertReportedCount(1);
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 2);
+
+    expect($failed->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-02 09:00:00')
+        ->and($failed->last_run_at)->toBeNull()
+        ->and($next->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00')
+        ->and($next->last_run_at->toDateTimeString())->toBe('2026-05-02 09:01:00');
+});
+
+it('continues running schedules when saving an occurrence fails', function () {
+    Exceptions::fake();
+    Carbon::setTestNow('2026-05-02 08:00:00');
+
+    $model = SchedulableModel::create();
+    $failed = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $next = $model->addSchedule(new CronSchedule('0 9 * * *'));
+
+    $exception = new RuntimeException('Schedule update failed.');
+    $triggered = [];
+
+    Event::listen(ScheduleTriggered::class, function ($event) use (&$triggered) {
+        $triggered[] = $event->schedule->id;
+    });
+
+    Schedule::updating(function ($schedule) use ($failed, $exception) {
+        if ($schedule->is($failed)) {
+            throw $exception;
+        }
+    });
+
+    Carbon::setTestNow('2026-05-02 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    Exceptions::assertReported(fn (RuntimeException $reported) => $reported === $exception);
+    Exceptions::assertReportedCount(1);
+    expect($triggered)->toBe([$failed->id, $next->id])
+        ->and($failed->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-02 09:00:00')
+        ->and($failed->last_run_at)->toBeNull()
+        ->and($next->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00')
+        ->and($next->last_run_at->toDateTimeString())->toBe('2026-05-02 09:01:00');
 });
