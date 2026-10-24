@@ -15,8 +15,8 @@ class CronSchedule extends Schedule
     {
         $cron = new CronExpression($this->expression);
 
-        if (static::$tapUsing) {
-            (static::$tapUsing)($cron, $this);
+        if ($callback = static::$tapCallbacks[static::class] ?? null) {
+            $callback($cron, $this);
         }
 
         return Carbon::instance($cron->getNextRunDate($after));
