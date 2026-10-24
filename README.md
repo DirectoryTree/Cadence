@@ -211,6 +211,8 @@ If dispatching or advancing a schedule throws an exception, the command reports 
 
 Listeners may receive the same occurrence again if part of the dispatch succeeds before a failure, or if advancing the schedule fails after dispatch.
 
+To handle duplicate deliveries, combine `$event->schedule->getKey()` and `$event->scheduledAt->getTimestamp()` into a stable key for the occurrence, scoped to each listener. For database work, enforce uniqueness on that key and record it in the same transaction as the work. For external services that support idempotency keys, pass the same key on each attempt so repeated requests do not repeat the side effect.
+
 ### Listening for Triggered Schedules
 
 Listen for the `ScheduleTriggered` event to perform work when a schedule fires:
