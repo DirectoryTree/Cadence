@@ -5,6 +5,7 @@ namespace DirectoryTree\Cadence\Commands;
 use DirectoryTree\Cadence\Events\ScheduleTriggered;
 use DirectoryTree\Cadence\Schedule;
 use Illuminate\Console\Command;
+use Throwable;
 
 class RunDueSchedules extends Command
 {
@@ -28,15 +29,22 @@ class RunDueSchedules extends Command
     public function handle(): int
     {
         $now = now();
+        $exitCode = self::SUCCESS;
 
-        Schedule::due($now)->eachById(function (Schedule $schedule) {
-            $dispatchedAt = now();
+        Schedule::due($now)->eachById(function (Schedule $schedule) use (&$exitCode) {
+            try {
+                $dispatchedAt = now();
 
-            ScheduleTriggered::dispatch($schedule, $dispatchedAt);
+                ScheduleTriggered::dispatch($schedule, $dispatchedAt);
 
-            $schedule->advance($dispatchedAt);
+                $schedule->advance($dispatchedAt);
+            } catch (Throwable $e) {
+                report($e);
+
+                $exitCode = self::FAILURE;
+            }
         });
 
-        return self::SUCCESS;
+        return $exitCode;
     }
 }
