@@ -3,6 +3,7 @@
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use DirectoryTree\Cadence\Drivers\CronSchedule;
+use DirectoryTree\Cadence\Drivers\RecurrSchedule;
 use DirectoryTree\Cadence\Drivers\RruleSchedule;
 use DirectoryTree\Cadence\Events\ScheduleTriggered;
 use DirectoryTree\Cadence\Schedule;
@@ -365,6 +366,29 @@ it('dispatches events for multiple due schedules', function () {
     $this->artisan('schedules:run')->assertSuccessful();
 
     Event::assertDispatchedTimes(ScheduleTriggered::class, 2);
+});
+
+it('keeps a long-running Recurr schedule active after dispatching', function () {
+    Event::fake();
+    Carbon::setTestNow('2020-01-01 08:00:00');
+
+    $schedule = SchedulableModel::create()->addSchedule(
+        new RecurrSchedule('FREQ=DAILY;DTSTART=20200101T090000')
+    );
+
+    Carbon::setTestNow('2026-05-02 10:00:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    expect($schedule->refresh()->next_run_at?->toDateTimeString())->toBe('2026-05-03 09:00:00');
+
+    Carbon::setTestNow('2026-05-03 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    Event::assertDispatchedTimes(ScheduleTriggered::class, 2);
+
+    expect($schedule->refresh()->next_run_at?->toDateTimeString())->toBe('2026-05-04 09:00:00');
 });
 
 it('continues running schedules when a listener throws and retries the failed occurrence', function ($exceptionClass) {

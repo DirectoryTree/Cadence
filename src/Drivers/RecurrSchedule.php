@@ -6,10 +6,10 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DateTime;
 use DateTimeZone;
+use DirectoryTree\Cadence\Support\RecurrAfterConstraint;
 use DirectoryTree\Cadence\Support\RruleExpression;
 use Recurr\Rule;
 use Recurr\Transformer\ArrayTransformer;
-use Recurr\Transformer\Constraint\AfterConstraint;
 
 class RecurrSchedule extends Schedule
 {
@@ -33,7 +33,7 @@ class RecurrSchedule extends Schedule
         }
 
         $recurrences = $transformer->transform(
-            $rule, new AfterConstraint($after->toDateTime())
+            $rule, new RecurrAfterConstraint($after->toDateTime(), $rule->getCount()), false
         );
 
         if ($first = $recurrences->first()) {
