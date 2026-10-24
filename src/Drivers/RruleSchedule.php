@@ -53,7 +53,9 @@ class RruleSchedule extends Schedule
         [$expression, $dtstart] = RruleExpression::extractDtstart($this->toExpression());
 
         if ($dtstart) {
-            $tzid = $this->timezone ? ";TZID={$this->timezone}" : '';
+            $tzid = $this->timezone && ! str_ends_with($dtstart, 'Z')
+                ? ";TZID={$this->timezone}"
+                : '';
 
             return "DTSTART{$tzid}:{$dtstart}\nRRULE:{$expression}";
         }
