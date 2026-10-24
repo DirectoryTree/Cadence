@@ -31,7 +31,7 @@ class Cadence
     {
         $driverClass = static::$drivers[$type] ?? null;
 
-        if (! $driverClass) {
+        if ($driverClass === null) {
             throw new InvalidArgumentException(
                 "Unknown schedule driver type: {$type}"
             );
