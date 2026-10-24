@@ -2,6 +2,9 @@
 
 use Carbon\Carbon;
 use DirectoryTree\Cadence\Drivers\RecurrSchedule;
+use Recurr\Rule;
+use Recurr\Transformer\ArrayTransformer;
+use Recurr\Transformer\ArrayTransformerConfig;
 
 it('computes the next daily occurrence', function () {
     Carbon::setTestNow('2026-05-02 10:00:00');
@@ -78,3 +81,68 @@ it('returns a carbon instance', function () {
 
     expect($next)->toBeInstanceOf(Carbon::class);
 });
+
+it('finds the next occurrence beyond the historical transformation limit', function ($expression, $after, $expected) {
+    $next = (new RecurrSchedule($expression))->getNextOccurrence(Carbon::parse($after, 'UTC'));
+
+    expect($next?->toDateTimeString())->toBe($expected);
+})->with([
+    'daily' => ['FREQ=DAILY;DTSTART=20200101T090000', '2026-05-02 10:00:00', '2026-05-03 09:00:00'],
+    'hourly' => ['FREQ=HOURLY;DTSTART=20260501T090000', '2026-06-02 10:00:00', '2026-06-02 11:00:00'],
+    'count' => ['FREQ=DAILY;COUNT=1000;DTSTART=20240101T090000', '2026-05-02 10:00:00', '2026-05-03 09:00:00'],
+    'until' => ['FREQ=DAILY;UNTIL=20260503T090000Z;DTSTART=20200101T090000', '2026-05-02 10:00:00', '2026-05-03 09:00:00'],
+    'excluded next occurrence' => ['FREQ=DAILY;EXDATE=20260503T090000;DTSTART=20200101T090000', '2026-05-02 10:00:00', '2026-05-04 09:00:00'],
+    'set position' => ['FREQ=DAILY;BYHOUR=9,10;BYSETPOS=1;COUNT=1000;DTSTART=20240101T090000', '2026-05-02 10:00:00', '2026-05-03 09:00:00'],
+]);
+
+it('preserves the last occurrence and exhaustion of a counted rule', function ($count) {
+    $driver = new RecurrSchedule("FREQ=DAILY;COUNT={$count};DTSTART=20240101T090000");
+    $last = Carbon::parse('2024-01-01 09:00:00', 'UTC')->addDays($count - 1);
+
+    expect($driver->getNextOccurrence($last->copy()->subSecond())?->equalTo($last))->toBeTrue()
+        ->and($driver->getNextOccurrence($last))->toBeNull();
+})->with([1, 3, 1000]);
+
+it('does not extend a rule beyond its until date', function () {
+    $driver = new RecurrSchedule('FREQ=DAILY;UNTIL=20260503T090000Z;DTSTART=20200101T090000');
+    $last = Carbon::parse('2026-05-03 09:00:00', 'UTC');
+
+    expect($driver->getNextOccurrence($last->copy()->subSecond())?->equalTo($last))->toBeTrue()
+        ->and($driver->getNextOccurrence($last))->toBeNull();
+});
+
+it('preserves count when the transformation limit is customized', function () {
+    RecurrSchedule::tap(function (Rule $rule, ArrayTransformer $transformer) {
+        $transformer->setConfig((new ArrayTransformerConfig)->setVirtualLimit(1));
+    });
+
+    try {
+        $driver = new RecurrSchedule('FREQ=DAILY;COUNT=3;DTSTART=20260501T090000');
+        $last = Carbon::parse('2026-05-03 09:00:00', 'UTC');
+
+        expect($driver->getNextOccurrence($last->copy()->subSecond())?->equalTo($last))->toBeTrue()
+            ->and($driver->getNextOccurrence($last))->toBeNull();
+    } finally {
+        RecurrSchedule::tap(null);
+    }
+});
+
+it('skips excluded occurrences before returning the next date', function ($exclusion) {
+    $driver = new RecurrSchedule("FREQ=DAILY;EXDATE={$exclusion};DTSTART=20260501T090000", 'America/New_York');
+
+    $next = $driver->getNextOccurrence(Carbon::parse('2026-05-01 10:00:00', 'America/New_York'));
+
+    expect($next?->toDateTimeString())->toBe('2026-05-03 09:00:00');
+})->with([
+    'date only' => '20260502',
+    'local time' => '20260502T090000',
+    'UTC time' => '20260502T130000Z',
+]);
+
+it('returns null when the remaining occurrences are excluded', function ($limit) {
+    $driver = new RecurrSchedule("FREQ=DAILY;{$limit};EXDATE=20260502T090000,20260503T090000;DTSTART=20260501T090000");
+
+    $next = $driver->getNextOccurrence(Carbon::parse('2026-05-01 10:00:00', 'UTC'));
+
+    expect($next)->toBeNull();
+})->with(['COUNT=3', 'UNTIL=20260503T090000Z']);
