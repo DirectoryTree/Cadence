@@ -56,6 +56,26 @@ it('computes next occurrence with timezone set via method', function () {
     expect($next->timezone('UTC')->format('Y-m-d H:i:s'))->toBe('2026-05-02 13:00:00');
 });
 
+it('preserves a UTC start when a timezone is configured', function ($timezone, $limit) {
+    $expression = "FREQ=DAILY;{$limit};DTSTART=20260501T090000Z";
+    $driver = new RruleSchedule($expression, $timezone);
+
+    $next = $driver->getNextOccurrence(Carbon::parse('2026-05-02 08:00:00', 'UTC'));
+
+    expect($next?->utc()->toDateTimeString())->toBe('2026-05-02 09:00:00')
+        ->and($driver->toExpression())->toBe($expression)
+        ->and($driver->getNextOccurrence(Carbon::parse('2026-05-03 09:00:00', 'UTC')))->toBeNull();
+})->with(['America/New_York', 'Australia/Sydney'])->with(['COUNT=3', 'UNTIL=20260503T090000Z']);
+
+it('preserves a UTC start when the timezone is set via method', function () {
+    $driver = (new RruleSchedule('FREQ=DAILY;DTSTART=20260501T090000Z'))
+        ->setTimezone('America/New_York');
+
+    $next = $driver->getNextOccurrence(Carbon::parse('2026-05-02 08:00:00', 'UTC'));
+
+    expect($next?->utc()->toDateTimeString())->toBe('2026-05-02 09:00:00');
+});
+
 it('serializes to expression', function () {
     Carbon::setTestNow('2026-05-02 10:00:00');
 

@@ -187,6 +187,27 @@ it('preserves the recurrence count when the timezone changes', function ($driver
         ->and($schedule->expression)->toBe('FREQ=DAILY;COUNT=2;DTSTART=20260501T090000');
 })->with([RruleSchedule::class, RecurrSchedule::class]);
 
+it('preserves an explicit UTC recurrence start across reloads and timezone changes', function () {
+    $expression = 'FREQ=DAILY;DTSTART=20260501T090000Z';
+    $schedule = SchedulableModel::create()->addSchedule(
+        new RruleSchedule($expression, 'America/New_York')
+    );
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00')
+        ->and($schedule->expression)->toBe($expression);
+
+    $schedule->update(['timezone' => 'Australia/Sydney']);
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00')
+        ->and($schedule->expression)->toBe($expression);
+
+    Carbon::setTestNow('2026-05-03 09:01:00');
+
+    $schedule->advance(now());
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-04 09:00:00');
+});
+
 it('resolves the driver from a stored schedule', function () {
     $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
 
