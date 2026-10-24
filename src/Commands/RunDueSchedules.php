@@ -2,7 +2,6 @@
 
 namespace DirectoryTree\Cadence\Commands;
 
-use DirectoryTree\Cadence\Events\ScheduleMissed;
 use DirectoryTree\Cadence\Events\ScheduleTriggered;
 use DirectoryTree\Cadence\Schedule;
 use Illuminate\Console\Command;
@@ -21,7 +20,7 @@ class RunDueSchedules extends Command
      *
      * @var string
      */
-    public $description = 'Dispatch events for due and missed model schedules';
+    public $description = 'Dispatch events for due model schedules';
 
     /**
      * Execute the console command.
@@ -30,18 +29,12 @@ class RunDueSchedules extends Command
     {
         $now = now();
 
-        Schedule::due($now)->eachById(function (Schedule $schedule) use ($now) {
-            if ($schedule->isMissed($now)) {
-                ScheduleMissed::dispatch($schedule);
+        Schedule::due($now)->eachById(function (Schedule $schedule) {
+            $dispatchedAt = now();
 
-                $schedule->skip($now);
+            ScheduleTriggered::dispatch($schedule, $dispatchedAt);
 
-                return;
-            }
-
-            ScheduleTriggered::dispatch($schedule);
-
-            $schedule->advance($now);
+            $schedule->advance($dispatchedAt);
         });
 
         return self::SUCCESS;
