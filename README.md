@@ -207,7 +207,7 @@ Schedule::command('schedules:run')
 
 This command queries all schedules where `next_run_at <= now()`, dispatches a `ScheduleTriggered` event for each, and advances `next_run_at` to the next occurrence.
 
-If dispatching or advancing a schedule throws an exception, the command reports it through Laravel's exception handler and continues processing the remaining schedules. It returns a non-zero exit code if any schedule failed. A schedule whose event fails to dispatch is not advanced, so it can be attempted again on the next run.
+If dispatching or advancing a schedule throws an exception, the command reports it through Laravel's exception handler and continues processing the remaining schedules. Like Laravel's scheduler, it returns a successful exit code when processing finishes, even if individual schedules failed. A schedule whose event fails to dispatch is not advanced, so it can be attempted again on the next run.
 
 Listeners may receive the same occurrence again if part of the dispatch succeeds before a failure, or if advancing the schedule fails after dispatch.
 

@@ -29,9 +29,8 @@ class RunDueSchedules extends Command
     public function handle(): int
     {
         $now = now();
-        $exitCode = self::SUCCESS;
 
-        Schedule::due($now)->eachById(function (Schedule $schedule) use (&$exitCode) {
+        Schedule::due($now)->eachById(function (Schedule $schedule) {
             try {
                 $dispatchedAt = now();
 
@@ -40,11 +39,9 @@ class RunDueSchedules extends Command
                 $schedule->advance($dispatchedAt);
             } catch (Throwable $e) {
                 report($e);
-
-                $exitCode = self::FAILURE;
             }
         });
 
-        return $exitCode;
+        return self::SUCCESS;
     }
 }

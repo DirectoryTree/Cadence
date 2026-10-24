@@ -389,7 +389,7 @@ it('continues running schedules when a listener throws and retries the failed oc
 
     Carbon::setTestNow('2026-05-02 09:01:00');
 
-    artisan('schedules:run')->assertExitCode(1);
+    artisan('schedules:run')->assertSuccessful();
 
     Exceptions::assertReported($exceptionClass);
     Exceptions::assertReportedCount(1);
@@ -425,7 +425,7 @@ it('continues running schedules when a driver cannot calculate the next occurren
 
     Carbon::setTestNow('2026-05-02 09:01:00');
 
-    artisan('schedules:run')->assertExitCode(1);
+    artisan('schedules:run')->assertSuccessful();
 
     Exceptions::assertReported(InvalidArgumentException::class);
     Exceptions::assertReportedCount(1);
@@ -460,7 +460,7 @@ it('continues running schedules when saving an occurrence fails', function () {
 
     Carbon::setTestNow('2026-05-02 09:01:00');
 
-    artisan('schedules:run')->assertExitCode(1);
+    artisan('schedules:run')->assertSuccessful();
 
     Exceptions::assertReported(fn (RuntimeException $reported) => $reported === $exception);
     Exceptions::assertReportedCount(1);
