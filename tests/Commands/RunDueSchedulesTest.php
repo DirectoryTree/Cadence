@@ -244,6 +244,67 @@ it('skips disabled schedules', function () {
     Event::assertNotDispatched(ScheduleTriggered::class);
 });
 
+it('preserves schedules disabled by a triggered listener', function () {
+    Carbon::setTestNow('2026-05-02 08:00:00');
+
+    $model = SchedulableModel::create();
+    $disabled = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $next = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $triggered = [];
+
+    Event::listen(ScheduleTriggered::class, function ($event) use ($disabled, &$triggered) {
+        $triggered[] = $event->schedule->id;
+
+        if ($event->schedule->is($disabled)) {
+            $event->schedule->disable();
+        }
+    });
+
+    Carbon::setTestNow('2026-05-02 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    expect($disabled->refresh()->isDisabled())->toBeTrue()
+        ->and($disabled->next_run_at)->toBeNull()
+        ->and($next->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00');
+
+    Carbon::setTestNow('2026-05-03 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    expect($triggered)->toBe([$disabled->id, $next->id, $next->id]);
+});
+
+it('preserves schedules deleted by a triggered listener', function () {
+    Carbon::setTestNow('2026-05-02 08:00:00');
+
+    $model = SchedulableModel::create();
+    $deleted = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $next = $model->addSchedule(new CronSchedule('0 9 * * *'));
+    $triggered = [];
+
+    Event::listen(ScheduleTriggered::class, function ($event) use ($deleted, &$triggered) {
+        $triggered[] = $event->schedule->id;
+
+        if ($event->schedule->is($deleted)) {
+            $event->schedule->delete();
+        }
+    });
+
+    Carbon::setTestNow('2026-05-02 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    expect(Schedule::find($deleted->id))->toBeNull()
+        ->and($next->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00');
+
+    Carbon::setTestNow('2026-05-03 09:01:00');
+
+    artisan('schedules:run')->assertSuccessful();
+
+    expect($triggered)->toBe([$deleted->id, $next->id, $next->id]);
+});
+
 it('runs due schedules when disabled at has not been migrated', function () {
     Event::fake();
     Carbon::setTestNow('2026-05-02 12:00:00');
