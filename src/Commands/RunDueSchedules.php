@@ -30,7 +30,7 @@ class RunDueSchedules extends Command
     {
         $now = now();
 
-        Schedule::due($now)->each(function (Schedule $schedule) use ($now) {
+        Schedule::due($now)->eachById(function (Schedule $schedule) use ($now) {
             if ($schedule->isMissed($now)) {
                 ScheduleMissed::dispatch($schedule);
 
