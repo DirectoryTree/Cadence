@@ -107,6 +107,86 @@ it('stores null timezone when none provided', function () {
     expect($schedule->timezone)->toBeNull();
 });
 
+it('recalculates the next run when the timezone changes', function ($driverClass, $expression) {
+    $schedule = SchedulableModel::create()->addSchedule(new $driverClass($expression, 'America/New_York'));
+    $schedule->update(['last_run_at' => Carbon::parse('2026-05-01 13:01:00')]);
+    $storedExpression = $schedule->expression;
+
+    Carbon::setTestNow('2026-05-02 13:30:00');
+
+    $schedule->update(['timezone' => 'America/Los_Angeles']);
+    $schedule->refresh();
+
+    expect($schedule->next_run_at->toDateTimeString())->toBe('2026-05-02 16:00:00')
+        ->and($schedule->last_run_at->toDateTimeString())->toBe('2026-05-01 13:01:00')
+        ->and($schedule->expression)->toBe($storedExpression)
+        ->and($schedule->isEnabled())->toBeTrue();
+})->with([
+    'cron' => [CronSchedule::class, '0 9 * * *'],
+    'rrule' => [RruleSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+    'recurr' => [RecurrSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+]);
+
+it('keeps a schedule disabled when its timezone changes', function ($driverClass, $expression) {
+    $schedule = SchedulableModel::create()->addSchedule(new $driverClass($expression, 'America/New_York'));
+    $schedule->update(['last_run_at' => Carbon::parse('2026-05-01 13:01:00')]);
+    $schedule->disable();
+    $disabledAt = $schedule->disabled_at->toDateTimeString();
+    $storedExpression = $schedule->expression;
+
+    Carbon::setTestNow('2026-05-02 13:30:00');
+
+    $schedule->update(['timezone' => 'America/Los_Angeles']);
+    $schedule->refresh();
+
+    expect($schedule->next_run_at)->toBeNull()
+        ->and($schedule->disabled_at->toDateTimeString())->toBe($disabledAt)
+        ->and($schedule->last_run_at->toDateTimeString())->toBe('2026-05-01 13:01:00')
+        ->and($schedule->expression)->toBe($storedExpression);
+
+    $schedule->enable();
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-02 16:00:00');
+})->with([
+    'cron' => [CronSchedule::class, '0 9 * * *'],
+    'rrule' => [RruleSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+    'recurr' => [RecurrSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+]);
+
+it('recalculates the next run in the default timezone when the timezone is cleared', function ($driverClass, $expression) {
+    $schedule = SchedulableModel::create()->addSchedule(new $driverClass($expression, 'America/New_York'));
+
+    $schedule->update(['timezone' => null]);
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-03 09:00:00');
+})->with([
+    'cron' => [CronSchedule::class, '0 9 * * *'],
+    'rrule' => [RruleSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+    'recurr' => [RecurrSchedule::class, 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0;BYSECOND=0'],
+]);
+
+it('does not recalculate the next run when the timezone is unchanged', function () {
+    $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 9 * * *', 'America/New_York'));
+    $schedule->update(['next_run_at' => Carbon::parse('2026-05-10 13:00:00')]);
+
+    $schedule->update(['timezone' => 'America/New_York']);
+
+    expect($schedule->refresh()->next_run_at->toDateTimeString())->toBe('2026-05-10 13:00:00');
+});
+
+it('preserves the recurrence count when the timezone changes', function ($driverClass) {
+    $schedule = SchedulableModel::create()->addSchedule(
+        new $driverClass('FREQ=DAILY;COUNT=2;DTSTART=20260501T090000', 'America/New_York')
+    );
+
+    Carbon::setTestNow('2026-05-02 18:00:00');
+
+    $schedule->update(['timezone' => 'America/Los_Angeles']);
+
+    expect($schedule->refresh()->next_run_at)->toBeNull()
+        ->and($schedule->expression)->toBe('FREQ=DAILY;COUNT=2;DTSTART=20260501T090000');
+})->with([RruleSchedule::class, RecurrSchedule::class]);
+
 it('resolves the driver from a stored schedule', function () {
     $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
 

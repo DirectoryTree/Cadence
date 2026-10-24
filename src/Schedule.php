@@ -17,6 +17,20 @@ class Schedule extends Model
     protected $guarded = [];
 
     /**
+     * Boot the model.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (self $schedule) {
+            if ($schedule->isDirty('timezone')) {
+                $schedule->next_run_at = $schedule->isEnabled()
+                    ? $schedule->toDriver()->getNextOccurrence(now())?->setTimezone(config('app.timezone'))
+                    : null;
+            }
+        });
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

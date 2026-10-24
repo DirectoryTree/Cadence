@@ -163,6 +163,14 @@ $report->addSchedule($schedule);
 
 The schedule's timezone only determines when occurrences happen. Cadence converts computed run dates to your application's timezone before storing them, so the `due()` scope and `schedules:run` command fire at the correct moment.
 
+Saving a timezone change on a schedule recalculates `next_run_at` from the current time. It preserves `last_run_at`, and disabled schedules keep `next_run_at` set to `null`.
+
+```php
+$schedule->update(['timezone' => 'America/Los_Angeles']);
+```
+
+For RRULE schedules with a local `DTSTART`, the start keeps the same local date and time in the new timezone. Changing the timezone does not reset the start or the rule's `COUNT` or `INTERVAL`.
+
 ### Disabling Schedules
 
 Schedules may be disabled without deleting them:
