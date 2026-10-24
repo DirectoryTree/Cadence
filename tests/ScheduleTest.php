@@ -106,6 +106,85 @@ it('scopes to due schedules', function () {
     expect(Schedule::due()->count())->toBe(2);
 });
 
+it('stores next_run_at as the correct moment for a timezone ahead of the app', function () {
+    // 2026-05-02 10:00 UTC is 20:00 in Sydney (UTC+10), so the next 09:00 Sydney is 23:00 UTC.
+    $schedule = SchedulableModel::create()->addSchedule(
+        new CronSchedule('0 9 * * *', 'Australia/Sydney')
+    );
+
+    $schedule->refresh();
+
+    expect($schedule->next_run_at->equalTo(Carbon::parse('2026-05-02 23:00:00', 'UTC')))->toBeTrue();
+
+    Carbon::setTestNow('2026-05-02 22:59:00');
+
+    expect(Schedule::due()->exists())->toBeFalse();
+
+    Carbon::setTestNow('2026-05-02 23:00:30');
+
+    expect(Schedule::due()->exists())->toBeTrue();
+});
+
+it('stores next_run_at as the correct moment for a timezone behind the app', function () {
+    // 2026-05-02 10:00 UTC is 06:00 in New York (UTC-4), so the next 09:00 New York is 13:00 UTC.
+    $schedule = SchedulableModel::create()->addSchedule(
+        new CronSchedule('0 9 * * *', 'America/New_York')
+    );
+
+    $schedule->refresh();
+
+    expect($schedule->next_run_at->equalTo(Carbon::parse('2026-05-02 13:00:00', 'UTC')))->toBeTrue();
+    expect(Schedule::due()->exists())->toBeFalse();
+
+    Carbon::setTestNow('2026-05-02 12:59:00');
+
+    expect(Schedule::due()->exists())->toBeFalse();
+
+    Carbon::setTestNow('2026-05-02 13:00:30');
+
+    expect(Schedule::due()->exists())->toBeTrue();
+});
+
+it('scopes to due schedules using a date in another timezone', function () {
+    // Next run is 2026-05-02 12:00 UTC, which is 22:00 in Sydney (UTC+10).
+    SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
+
+    $before = Carbon::parse('2026-05-02 21:59:00', 'Australia/Sydney');
+    $after = Carbon::parse('2026-05-02 22:00:30', 'Australia/Sydney');
+
+    expect(Schedule::due($before)->exists())->toBeFalse();
+    expect(Schedule::due($after)->exists())->toBeTrue();
+    expect($before->format('Y-m-d H:i:s e'))->toBe('2026-05-02 21:59:00 Australia/Sydney');
+    expect($after->format('Y-m-d H:i:s e'))->toBe('2026-05-02 22:00:30 Australia/Sydney');
+    expect($after->getTimezone()->getName())->toBe('Australia/Sydney');
+});
+
+it('stores schedule occurrences in a non-UTC application timezone', function () {
+    $originalTimezone = date_default_timezone_get();
+
+    config(['app.timezone' => 'America/Toronto']);
+    date_default_timezone_set('America/Toronto');
+    Carbon::setTestNow(Carbon::parse('2026-05-02 06:00:00', 'America/Toronto'));
+
+    try {
+        $schedule = SchedulableModel::create()->addSchedule(
+            new CronSchedule('0 9 * * *', 'Australia/Sydney')
+        );
+
+        $schedule->refresh();
+
+        expect($schedule->next_run_at->equalTo(Carbon::parse('2026-05-02 23:00:00', 'UTC')))->toBeTrue();
+
+        $before = Carbon::parse('2026-05-02 22:59:59', 'UTC');
+        $after = Carbon::parse('2026-05-02 23:00:01', 'UTC');
+
+        expect(Schedule::due($before)->exists())->toBeFalse()
+            ->and(Schedule::due($after)->exists())->toBeTrue();
+    } finally {
+        date_default_timezone_set($originalTimezone);
+    }
+});
+
 it('excludes exhausted schedules from due scope', function () {
     $model = SchedulableModel::create();
 
@@ -175,6 +254,23 @@ it('can enable a disabled schedule', function () {
     expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
 });
 
+it('recomputes next_run_at as the correct moment when enabling a schedule with a timezone', function () {
+    $schedule = SchedulableModel::create()->addSchedule(
+        new CronSchedule('0 9 * * *', 'Australia/Sydney')
+    );
+
+    $schedule->disable();
+
+    // 2026-05-03 00:00 UTC is 10:00 in Sydney, so the next 09:00 Sydney is 2026-05-03 23:00 UTC.
+    Carbon::setTestNow('2026-05-03 00:00:00');
+
+    $schedule->enable();
+
+    $schedule->refresh();
+
+    expect($schedule->next_run_at->equalTo(Carbon::parse('2026-05-03 23:00:00', 'UTC')))->toBeTrue();
+});
+
 it('can advance a schedule to its next occurrence', function () {
     $schedule = SchedulableModel::create()->addSchedule(new CronSchedule('0 12 * * *'));
 
@@ -184,6 +280,35 @@ it('can advance a schedule to its next occurrence', function () {
 
     expect($schedule->last_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-02 12:01:00');
     expect($schedule->next_run_at->format('Y-m-d H:i:s'))->toBe('2026-05-03 12:00:00');
+});
+
+it('advances next_run_at to the correct moment for a schedule with a timezone', function () {
+    $schedule = SchedulableModel::create()->addSchedule(
+        new CronSchedule('0 9 * * *', 'Australia/Sydney')
+    );
+
+    $schedule->advance(Carbon::parse('2026-05-02 23:00:30', 'UTC'));
+
+    $schedule->refresh();
+
+    expect($schedule->last_run_at->equalTo(Carbon::parse('2026-05-02 23:00:30', 'UTC')))->toBeTrue();
+    expect($schedule->next_run_at->equalTo(Carbon::parse('2026-05-03 23:00:00', 'UTC')))->toBeTrue();
+});
+
+it('stores run dates in the application timezone when advancing a schedule', function () {
+    $schedule = SchedulableModel::create()->addSchedule(
+        new CronSchedule('0 9 * * *', 'Australia/Sydney')
+    );
+
+    $date = Carbon::parse('2026-05-03 09:00:30', 'Australia/Sydney');
+
+    $schedule->advance($date);
+
+    $schedule->refresh();
+
+    expect($schedule->last_run_at->equalTo(Carbon::parse('2026-05-02 23:00:30', 'UTC')))->toBeTrue()
+        ->and($schedule->next_run_at->equalTo(Carbon::parse('2026-05-03 23:00:00', 'UTC')))->toBeTrue()
+        ->and($date->format('Y-m-d H:i:s e'))->toBe('2026-05-03 09:00:30 Australia/Sydney');
 });
 
 it('scopes to enabled schedules', function () {
